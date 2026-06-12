@@ -1,8 +1,9 @@
 "use client";
 
-import { Bell, Search, Settings, SlidersHorizontal } from "lucide-react";
+import { Bell, Menu, Search, Settings, SlidersHorizontal } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 import { useBranding } from "@/components/branding-provider";
+import { useMobileSidebar } from "@/components/mobile-sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,15 +18,14 @@ export function Topbar({
   query,
   onQueryChange,
   onOpenSettings,
-  onOpenSidebarMobile,
 }: {
   query: string;
   onQueryChange: (value: string) => void;
   onOpenSettings: () => void;
-  onOpenSidebarMobile: () => void;
 }) {
   const { branding } = useBranding();
   const { cashier } = useAuth();
+  const { toggle: toggleSidebar } = useMobileSidebar();
 
   const initials = cashier
     ? cashier.fullName
@@ -40,20 +40,21 @@ export function Topbar({
 
   return (
     <header className="glass flex items-center gap-3 rounded-3xl p-3 sm:gap-4 sm:p-4">
-      {/* Mobile logo */}
+      {/* Burger — mobile only, opens the sidebar drawer */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={toggleSidebar}
+        aria-label="Ouvrir le menu"
+        className="h-11 w-11 shrink-0 rounded-2xl bg-muted/60 lg:hidden"
+      >
+        <Menu className="h-5 w-5" />
+      </Button>
+
+      {/* Mobile logo (replaces the hidden lg:only one) */}
       <div className="flex items-center gap-2 lg:hidden">
-        <div className="flex items-center justify-center">
-          {branding.logoImage ? (
-            <img
-              src={branding.logoImage}
-              alt="logo"
-              className="h-9 w-9 rounded-xl object-cover"
-            />
-          ) : (
-            <div className="brand-bg flex h-9 w-9 items-center justify-center rounded-xl text-sm font-bold">
-              {branding.logoText.charAt(0)}
-            </div>
-          )}
+        <div className="brand-bg flex h-9 w-9 items-center justify-center rounded-xl text-sm font-bold">
+          {branding.logoText.charAt(0)}
         </div>
       </div>
 
