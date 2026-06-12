@@ -216,15 +216,16 @@ export function CartPanel({
         </button>
 
         <Dialog open={invoiceOpen} onOpenChange={setInvoiceOpen}>
-          <DialogContent className="max-w-[22rem] max-h-[calc(100vh-2rem)] rounded-[2rem] bg-zinc-50 p-3 text-zinc-900 shadow-2xl ring-1 ring-zinc-200">
-            <div className="relative h-full overflow-hidden rounded-[2rem] border border-dashed border-zinc-300 bg-white px-4 py-4 text-[0.72rem] shadow-sm sm:max-h-[calc(100vh-4rem)]">
+          <DialogContent className="w-[22rem] max-w-[22rem] rounded-[2rem] bg-zinc-50 p-3 text-zinc-900 shadow-2xl ring-1 ring-zinc-200 sm:w-[22rem] sm:max-w-[22rem] max-h-[calc(100vh-1rem)] overflow-hidden">
+            <div className="relative h-[calc(100vh-1rem-12rem)] overflow-y-auto rounded-[2rem] border border-dashed border-zinc-300 bg-white px-4 py-4 text-[0.72rem] shadow-sm">
               <div className="absolute inset-x-0 top-0 h-8 bg-zinc-100 bg-[repeating-linear-gradient(90deg,#f8fafc_0_8px,transparent_8px_16px)]" />
               <div className="relative space-y-3 text-center">
+
                 <p className="text-[0.68rem] uppercase tracking-[0.3em] text-zinc-500">Point de vente</p>
                 <p className="text-base font-bold uppercase">BRIKIN</p>
                 <p className="text-[0.75rem]">03 AVENUE : MBILOA / NGALIEMA</p>
                 <p className="text-[0.75rem]">Tel: +243974763940 / 819648854</p>
-                <p className="text-[0.75rem]">Email: zuiya.mambula@gmail.com</p>
+                <p className="text-[0.75rem]">Email: BRIKIN</p>
               </div>
 
               <div className="rounded-3xl bg-white p-3">
