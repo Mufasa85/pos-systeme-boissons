@@ -1,5 +1,6 @@
-"use client"
+"use client";
 
+import { useRouter } from "next/navigation";
 import {
   BarChart3,
   Coffee,
@@ -9,9 +10,10 @@ import {
   Package,
   Settings,
   ShoppingBag,
-} from "lucide-react"
-import { useBranding } from "@/components/branding-provider"
-import { cn } from "@/lib/utils"
+} from "lucide-react";
+import { useAuth } from "@/components/auth-provider";
+import { useBranding } from "@/components/branding-provider";
+import { cn } from "@/lib/utils";
 
 const navItems = [
   { id: "pos", label: "Point of Sale", icon: ShoppingBag },
@@ -20,22 +22,28 @@ const navItems = [
   { id: "stock", label: "Stock", icon: Package },
   { id: "reports", label: "Reports", icon: BarChart3 },
   { id: "history", label: "History", icon: History },
-]
+];
 
 export function Sidebar({
   active,
   onChange,
   onOpenSettings,
 }: {
-  active: string
-  onChange: (id: string) => void
-  onOpenSettings: () => void
+  active: string;
+  onChange: (id: string) => void;
+  onOpenSettings: () => void;
 }) {
-  const { branding } = useBranding()
+  const { branding } = useBranding();
+  const { cashier, logout } = useAuth();
+  const router = useRouter();
+
+  function handleLogout() {
+    logout();
+    router.replace("/login");
+  }
 
   return (
     <aside className="hidden w-64 shrink-0 flex-col p-4 lg:flex">
-
       <div className="glass flex h-full flex-col rounded-3xl p-5">
         {/* Logo */}
         <div className="flex items-center gap-3 px-1">
@@ -54,8 +62,8 @@ export function Sidebar({
 
         <nav className="mt-8 flex flex-1 flex-col gap-1.5">
           {navItems.map((item) => {
-            const Icon = item.icon
-            const isActive = active === item.id
+            const Icon = item.icon;
+            const isActive = active === item.id;
             return (
               <button
                 key={item.id}
@@ -71,7 +79,7 @@ export function Sidebar({
                 <Icon className="h-5 w-5" />
                 {item.label}
               </button>
-            )
+            );
           })}
         </nav>
 
@@ -86,13 +94,29 @@ export function Sidebar({
           </button>
           <button
             type="button"
-            className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            onClick={handleLogout}
+            className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
           >
             <LogOut className="h-5 w-5" />
-            Log out
+            Se déconnecter
           </button>
+          {cashier ? (
+            <div className="mt-2 flex items-center gap-3 rounded-2xl bg-muted/40 px-3 py-2.5">
+              <div className="brand-bg flex h-8 w-8 items-center justify-center rounded-xl text-xs font-bold">
+                {cashier.fullName.charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-semibold">
+                  {cashier.fullName}
+                </p>
+                <p className="truncate text-[10px] uppercase tracking-wider text-muted-foreground">
+                  {cashier.code} · {cashier.role}
+                </p>
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
     </aside>
-  )
+  );
 }
