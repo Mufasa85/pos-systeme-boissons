@@ -14,6 +14,7 @@ const defaultBranding: Branding = {
   companyName: "Purr Coffee",
   tagline: "Specialty drinks & more",
   logoText: "Purr",
+  logoImage: "",
   primaryColor: "#f6905f",
   secondaryColor: "#fdebe1",
 }
@@ -57,7 +58,27 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
       readableForeground(branding.primaryColor),
     )
     root.style.setProperty("--brand-secondary", branding.secondaryColor)
+
+    // Persist branding to localStorage so user settings survive reloads.
+    try {
+      localStorage.setItem("branding", JSON.stringify(branding))
+    } catch (e) {
+      // ignore
+    }
   }, [branding])
+
+  // Load persisted branding on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("branding")
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        setBrandingState((prev) => ({ ...prev, ...parsed }))
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [])
 
   const value = useMemo(() => ({ branding, setBranding }), [branding, setBranding])
 

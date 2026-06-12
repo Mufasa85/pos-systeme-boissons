@@ -10,10 +10,12 @@ export function Topbar({
   query,
   onQueryChange,
   onOpenSettings,
+  onOpenSidebarMobile,
 }: {
   query: string
   onQueryChange: (value: string) => void
   onOpenSettings: () => void
+  onOpenSidebarMobile: () => void
 }) {
   const { branding } = useBranding()
 
@@ -21,8 +23,14 @@ export function Topbar({
     <header className="glass flex items-center gap-3 rounded-3xl p-3 sm:gap-4 sm:p-4">
       {/* Mobile logo */}
       <div className="flex items-center gap-2 lg:hidden">
-        <div className="brand-bg flex h-9 w-9 items-center justify-center rounded-xl text-sm font-bold">
-          {branding.logoText.charAt(0)}
+        <div className="flex items-center justify-center">
+          {branding.logoImage ? (
+            <img src={branding.logoImage} alt="logo" className="h-9 w-9 rounded-xl object-cover" />
+          ) : (
+            <div className="brand-bg flex h-9 w-9 items-center justify-center rounded-xl text-sm font-bold">
+              {branding.logoText.charAt(0)}
+            </div>
+          )}
         </div>
       </div>
 

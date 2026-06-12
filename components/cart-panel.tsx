@@ -9,7 +9,7 @@ import {
   Smartphone,
   Trash2,
 } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import type { CartItem } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -41,10 +41,20 @@ export function CartPanel({
   const [invoiceOpen, setInvoiceOpen] = useState(false)
   const [placed, setPlaced] = useState(false)
 
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   const subtotal = items.reduce((s, i) => s + i.drink.price * i.quantity, 0)
   const tax = subtotal * TAX_RATE
   const total = subtotal + tax
   const usdTotal = total / FX_RATE
+
+  // During SSR and the first client render (before effects run) we force
+  // the UI to represent an empty cart to avoid hydration mismatches.
+  const isEmpty = mounted ? items.length === 0 : true
 
   function openInvoice() {
     setInvoiceOpen(true)
@@ -196,13 +206,13 @@ export function CartPanel({
 
         <button
           type="button"
-          disabled={items.length === 0}
+          disabled={isEmpty}
           onClick={openInvoice}
           className={cn(
             "brand-bg mt-4 flex h-12 items-center justify-center rounded-2xl text-sm font-bold transition-opacity disabled:opacity-40",
           )}
         >
-          {placed ? "Facture validée" : `Valider la facture · $${total.toFixed(2)}`}
+          {placed ? "Facture validée" : `Valider la facture · $${(isEmpty ? 0 : total).toFixed(2)}`}
         </button>
 
         <Dialog open={invoiceOpen} onOpenChange={setInvoiceOpen}>

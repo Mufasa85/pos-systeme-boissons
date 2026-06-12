@@ -19,6 +19,7 @@ export function PosShell({
 }) {
 
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [query, setQuery] = useState("")
 
   return (
@@ -49,6 +50,7 @@ export function PosShell({
             query={query}
             onQueryChange={setQuery}
             onOpenSettings={() => setSettingsOpen(true)}
+            onOpenSidebarMobile={() => setSidebarOpen(true)}
           />
 
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
