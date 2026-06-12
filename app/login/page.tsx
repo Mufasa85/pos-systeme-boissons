@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 // ============================================================
-// BRIKIN — Login page
+// JOAC — Login page
 //
 // Two-column layout:
 //   • Left  : branded "welcome" panel with ambient gradient
@@ -117,7 +117,7 @@ export default function LoginPage() {
               <Wine className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-xl font-bold tracking-tight">BRIKIN</p>
+              <p className="text-xl font-bold tracking-tight">JOAC</p>
               <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
                 Specialty drinks & more
               </p>
@@ -130,7 +130,7 @@ export default function LoginPage() {
               Connexion sécurisée
             </div>
             <h1 className="text-4xl font-bold leading-[1.05] tracking-tight">
-              Bienvenue chez <span className="brand-text">BRIKIN</span>.
+              Bienvenue chez <span className="brand-text">JOAC</span>.
               <br />
               Heureux de vous revoir.
             </h1>
@@ -156,7 +156,7 @@ export default function LoginPage() {
           </div>
 
           <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} BRIKIN — 03 Avenue Mbiloa / Ngaliema ·
+            © {new Date().getFullYear()} JOAC — 03 Avenue Mbiloa / Ngaliema ·
             Kinshasa
           </p>
         </aside>
@@ -170,7 +170,7 @@ export default function LoginPage() {
                 <Wine className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-lg font-bold tracking-tight">BRIKIN</p>
+                <p className="text-lg font-bold tracking-tight">JOAC</p>
                 <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
                   Specialty drinks & more
                 </p>

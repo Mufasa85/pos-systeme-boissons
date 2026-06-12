@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import Image from "next/image"
+import Image from "next/image";
 import {
   Banknote,
   CreditCard,
@@ -8,23 +8,29 @@ import {
   Plus,
   Smartphone,
   Trash2,
-} from "lucide-react"
-import { useEffect, useState } from "react"
-import type { CartItem } from "@/lib/types"
-import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { cn } from "@/lib/utils"
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import type { CartItem } from "@/lib/types";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 // Discount feature removed
 
-const TAX_RATE = 0.05
-const FX_RATE = 2289.3077
+const TAX_RATE = 0.05;
+const FX_RATE = 2289.3077;
 
 const paymentMethods = [
   { id: "cash", label: "Cash", icon: Banknote },
   { id: "card", label: "Card", icon: CreditCard },
   { id: "mobile", label: "Mobile", icon: Smartphone },
-]
+];
 
 export function CartPanel({
   items,
@@ -32,41 +38,41 @@ export function CartPanel({
   onRemove,
   onClear,
 }: {
-  items: CartItem[]
-  onQty: (id: string, size: string, delta: number) => void
-  onRemove: (id: string, size: string) => void
-  onClear: () => void
+  items: CartItem[];
+  onQty: (id: string, size: string, delta: number) => void;
+  onRemove: (id: string, size: string) => void;
+  onClear: () => void;
 }) {
-  const [payment, setPayment] = useState("card")
-  const [invoiceOpen, setInvoiceOpen] = useState(false)
-  const [placed, setPlaced] = useState(false)
+  const [payment, setPayment] = useState("card");
+  const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const [placed, setPlaced] = useState(false);
 
-  const [mounted, setMounted] = useState(false)
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true)
-  }, [])
+    setMounted(true);
+  }, []);
 
-  const subtotal = items.reduce((s, i) => s + i.drink.price * i.quantity, 0)
-  const tax = subtotal * TAX_RATE
-  const total = subtotal + tax
-  const usdTotal = total / FX_RATE
+  const subtotal = items.reduce((s, i) => s + i.drink.price * i.quantity, 0);
+  const tax = subtotal * TAX_RATE;
+  const total = subtotal + tax;
+  const usdTotal = total / FX_RATE;
 
   // During SSR and the first client render (before effects run) we force
   // the UI to represent an empty cart to avoid hydration mismatches.
-  const isEmpty = mounted ? items.length === 0 : true
+  const isEmpty = mounted ? items.length === 0 : true;
 
   function openInvoice() {
-    setInvoiceOpen(true)
+    setInvoiceOpen(true);
   }
 
   function confirmInvoice() {
-    setInvoiceOpen(false)
-    setPlaced(true)
-    onClear()
+    setInvoiceOpen(false);
+    setPlaced(true);
+    onClear();
     setTimeout(() => {
-      setPlaced(false)
-    }, 1400)
+      setPlaced(false);
+    }, 1400);
   }
 
   return (
@@ -174,7 +180,9 @@ export function CartPanel({
           </div>
           <div className="flex justify-between text-muted-foreground">
             <span>Tax (5%)</span>
-            <span className="font-medium text-foreground">${tax.toFixed(2)}</span>
+            <span className="font-medium text-foreground">
+              ${tax.toFixed(2)}
+            </span>
           </div>
           <div className="flex justify-between pt-1 text-base font-bold">
             <span>Total</span>
@@ -185,8 +193,8 @@ export function CartPanel({
         {/* Payment methods */}
         <div className="mt-4 grid grid-cols-3 gap-2">
           {paymentMethods.map((m) => {
-            const Icon = m.icon
-            const isActive = payment === m.id
+            const Icon = m.icon;
+            const isActive = payment === m.id;
             return (
               <button
                 key={m.id}
@@ -194,13 +202,15 @@ export function CartPanel({
                 onClick={() => setPayment(m.id)}
                 className={cn(
                   "flex flex-col items-center gap-1 rounded-2xl py-3 text-xs font-medium transition-colors",
-                  isActive ? "brand-soft brand-ring" : "bg-muted/60 text-muted-foreground",
+                  isActive
+                    ? "brand-soft brand-ring"
+                    : "bg-muted/60 text-muted-foreground",
                 )}
               >
                 <Icon className="h-4 w-4" />
                 {m.label}
               </button>
-            )
+            );
           })}
         </div>
 
@@ -212,7 +222,9 @@ export function CartPanel({
             "brand-bg mt-4 flex h-12 items-center justify-center rounded-2xl text-sm font-bold transition-opacity disabled:opacity-40",
           )}
         >
-          {placed ? "Facture validée" : `Valider la facture · $${(isEmpty ? 0 : total).toFixed(2)}`}
+          {placed
+            ? "Facture validée"
+            : `Valider la facture · $${(isEmpty ? 0 : total).toFixed(2)}`}
         </button>
 
         <Dialog open={invoiceOpen} onOpenChange={setInvoiceOpen}>
@@ -220,12 +232,13 @@ export function CartPanel({
             <div className="relative h-[calc(100vh-1rem-12rem)] overflow-y-auto rounded-[2rem] border border-dashed border-zinc-300 bg-white px-4 py-4 text-[0.72rem] shadow-sm">
               <div className="absolute inset-x-0 top-0 h-8 bg-zinc-100 bg-[repeating-linear-gradient(90deg,#f8fafc_0_8px,transparent_8px_16px)]" />
               <div className="relative space-y-3 text-center">
-
-                <p className="text-[0.68rem] uppercase tracking-[0.3em] text-zinc-500">Point de vente</p>
-                <p className="text-base font-bold uppercase">BRIKIN</p>
+                <p className="text-[0.68rem] uppercase tracking-[0.3em] text-zinc-500">
+                  Point de vente
+                </p>
+                <p className="text-base font-bold uppercase">JOAC</p>
                 <p className="text-[0.75rem]">03 AVENUE : MBILOA / NGALIEMA</p>
                 <p className="text-[0.75rem]">Tel: +243974763940 / 819648854</p>
-                <p className="text-[0.75rem]">Email: BRIKIN</p>
+                <p className="text-[0.75rem]">Email: JOAC</p>
               </div>
 
               <div className="rounded-3xl bg-white p-3">
@@ -274,12 +287,17 @@ export function CartPanel({
                 </div>
                 <div className="space-y-2 pt-3">
                   {items.map((item) => (
-                    <div key={`${item.drink.id}-${item.size}`} className="flex items-center justify-between text-[0.75rem] text-zinc-700">
+                    <div
+                      key={`${item.drink.id}-${item.size}`}
+                      className="flex items-center justify-between text-[0.75rem] text-zinc-700"
+                    >
                       <span className="w-1/2 truncate font-medium">
                         {item.drink.name} {item.size && `[${item.size}]`}
                       </span>
                       <span className="w-14 text-right">{item.quantity}</span>
-                      <span className="w-20 text-right">{(item.drink.price * item.quantity).toFixed(2)} Fc</span>
+                      <span className="w-20 text-right">
+                        {(item.drink.price * item.quantity).toFixed(2)} Fc
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -288,7 +306,9 @@ export function CartPanel({
               <div className="rounded-3xl bg-white p-3 text-[0.75rem] text-zinc-700">
                 <div className="flex justify-between py-1 border-b border-dashed border-zinc-300">
                   <span>Total TTC</span>
-                  <span className="font-semibold text-zinc-900">{total.toFixed(2)} Fc</span>
+                  <span className="font-semibold text-zinc-900">
+                    {total.toFixed(2)} Fc
+                  </span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-dashed border-zinc-300">
                   <span>Taux du jour</span>
@@ -309,13 +329,11 @@ export function CartPanel({
               <Button variant="outline" onClick={() => setInvoiceOpen(false)}>
                 Annuler
               </Button>
-              <Button onClick={confirmInvoice}>
-                Valider la facture
-              </Button>
+              <Button onClick={confirmInvoice}>Valider la facture</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
     </aside>
-  )
+  );
 }
