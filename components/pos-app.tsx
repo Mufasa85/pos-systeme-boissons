@@ -32,10 +32,14 @@ export function PosApp() {
   }, [category, query])
 
   function addToCart(drink: Drink, size: string) {
+    // Bloque l'ajout si le stock est vide
+    if (drink.stock <= 0) return
+
     setCart((prev) => {
       const existing = prev.find(
         (i) => i.drink.id === drink.id && i.size === size,
       )
+
       if (existing) {
         return prev.map((i) =>
           i.drink.id === drink.id && i.size === size
@@ -43,6 +47,7 @@ export function PosApp() {
             : i,
         )
       }
+
       return [...prev, { drink, size, quantity: 1 }]
     })
   }
@@ -101,6 +106,7 @@ export function PosApp() {
           query={query}
           onQueryChange={setQuery}
           onOpenSettings={() => setSettingsOpen(true)}
+          onOpenSidebarMobile={() => {}}
         />
 
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden xl:flex-row">

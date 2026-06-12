@@ -18,7 +18,7 @@ export const categories: Category[] = [
 export const drinks: Drink[] = [
   { id: "sir-edwards", name: "Sir Edward's", description: "", price: 30, category: "whiskies", image: "/drinks/Sir Edward's.jpeg", stock: 100, popularity: 1 },
   { id: "grants-75cl", name: "Grant's 75 cl", description: "", price: 35, category: "whiskies", image: "/drinks/Grant's.jpeg", stock: 100, popularity: 1 },
-  { id: "mouton-cadet", name: "Mouton Cadet", description: "", price: 35, category: "vins", image: "/drinks/Mouton Cadet.jpeg", stock: 100, popularity: 1 },
+  { id: "mouton-cadet", name: "Mouton Cadet", description: "", price: 35, category: "vins", image: "/drinks/Mouton Cadet.jpeg", stock: 0, popularity: 1 },
   { id: "red-label", name: "Red Label", description: "", price: 40, category: "whiskies", image: "/drinks/red Label.jpeg", stock: 100, popularity: 1 },
   { id: "black-label", name: "Black Label", description: "", price: 60, category: "whiskies", image: "/drinks/Black Label.jpeg", stock: 100, popularity: 1 },
   { id: "double-black", name: "Double Black", description: "", price: 80, category: "whiskies", image: "/drinks/double Label.jpeg", stock: 100, popularity: 1 },
@@ -130,7 +130,7 @@ export const salesTrend = [
 ]
 
 export const topSellers = [
-  { name: "Iced Cappuccino", sold: 142 },
+  { name: "double-black", sold: 142 },
   { name: "Cola Classic", sold: 118 },
   { name: "Caffe Latte", sold: 96 },
   { name: "Iced Americano", sold: 71 },

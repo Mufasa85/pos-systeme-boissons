@@ -44,6 +44,8 @@ export interface Branding {
   companyName: string
   tagline: string
   logoText: string
+  // Optional data URL or path to a logo image. If present, shown instead of initials.
+  logoImage?: string
   primaryColor: string
   secondaryColor: string
 }

@@ -47,8 +47,18 @@ export function Sidebar({
       <div className="glass flex h-full flex-col rounded-3xl p-5">
         {/* Logo */}
         <div className="flex items-center gap-3 px-1">
-          <div className="brand-bg flex h-11 w-11 items-center justify-center rounded-2xl text-lg font-bold">
-            {branding.logoText.charAt(0)}
+          <div className="flex items-center justify-center">
+            {branding.logoImage ? (
+              <img
+                src={branding.logoImage}
+                alt="logo"
+                className="h-11 w-11 rounded-2xl object-cover"
+              />
+            ) : (
+              <div className="brand-bg flex h-11 w-11 items-center justify-center rounded-2xl text-lg font-bold">
+                {branding.logoText.charAt(0)}
+              </div>
+            )}
           </div>
           <div className="min-w-0">
             <p className="truncate text-base font-bold leading-tight">

@@ -90,16 +90,23 @@ export function DrinkCard({
 
           <button
             type="button"
+            disabled={drink.stock <= 0}
             onClick={() => onAdd?.(drink, size || sizes[0] || "")}
             className={cn(
               "flex h-11 items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition-colors",
-              inCartQty && inCartQty > 0
+              drink.stock <= 0
+                ? "cursor-not-allowed bg-muted/50 text-muted-foreground opacity-70"
+                : inCartQty && inCartQty > 0
                 ? "brand-bg"
                 : "bg-muted/70 text-foreground hover:brightness-95",
             )}
           >
             <Plus className="h-4 w-4" />
-            {inCartQty && inCartQty > 0 ? `In cart · ${inCartQty}` : "Add to cart"}
+            {drink.stock <= 0
+              ? "Out of stock"
+              : inCartQty && inCartQty > 0
+                ? `In cart · ${inCartQty}`
+                : "Add to cart"}
           </button>
         </div>
       )}

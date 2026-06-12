@@ -9,7 +9,7 @@ import {
   Smartphone,
   Trash2,
 } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import type { CartItem } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -41,10 +41,20 @@ export function CartPanel({
   const [invoiceOpen, setInvoiceOpen] = useState(false)
   const [placed, setPlaced] = useState(false)
 
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   const subtotal = items.reduce((s, i) => s + i.drink.price * i.quantity, 0)
   const tax = subtotal * TAX_RATE
   const total = subtotal + tax
   const usdTotal = total / FX_RATE
+
+  // During SSR and the first client render (before effects run) we force
+  // the UI to represent an empty cart to avoid hydration mismatches.
+  const isEmpty = mounted ? items.length === 0 : true
 
   function openInvoice() {
     setInvoiceOpen(true)
@@ -196,25 +206,26 @@ export function CartPanel({
 
         <button
           type="button"
-          disabled={items.length === 0}
+          disabled={isEmpty}
           onClick={openInvoice}
           className={cn(
             "brand-bg mt-4 flex h-12 items-center justify-center rounded-2xl text-sm font-bold transition-opacity disabled:opacity-40",
           )}
         >
-          {placed ? "Facture validée" : `Valider la facture · $${total.toFixed(2)}`}
+          {placed ? "Facture validée" : `Valider la facture · $${(isEmpty ? 0 : total).toFixed(2)}`}
         </button>
 
         <Dialog open={invoiceOpen} onOpenChange={setInvoiceOpen}>
-          <DialogContent className="max-w-[22rem] max-h-[calc(100vh-2rem)] rounded-[2rem] bg-zinc-50 p-3 text-zinc-900 shadow-2xl ring-1 ring-zinc-200">
-            <div className="relative h-full overflow-hidden rounded-[2rem] border border-dashed border-zinc-300 bg-white px-4 py-4 text-[0.72rem] shadow-sm sm:max-h-[calc(100vh-4rem)]">
+          <DialogContent className="w-[22rem] max-w-[22rem] rounded-[2rem] bg-zinc-50 p-3 text-zinc-900 shadow-2xl ring-1 ring-zinc-200 sm:w-[22rem] sm:max-w-[22rem] max-h-[calc(100vh-1rem)] overflow-hidden">
+            <div className="relative h-[calc(100vh-1rem-12rem)] overflow-y-auto rounded-[2rem] border border-dashed border-zinc-300 bg-white px-4 py-4 text-[0.72rem] shadow-sm">
               <div className="absolute inset-x-0 top-0 h-8 bg-zinc-100 bg-[repeating-linear-gradient(90deg,#f8fafc_0_8px,transparent_8px_16px)]" />
               <div className="relative space-y-3 text-center">
+
                 <p className="text-[0.68rem] uppercase tracking-[0.3em] text-zinc-500">Point de vente</p>
                 <p className="text-base font-bold uppercase">BRIKIN</p>
                 <p className="text-[0.75rem]">03 AVENUE : MBILOA / NGALIEMA</p>
                 <p className="text-[0.75rem]">Tel: +243974763940 / 819648854</p>
-                <p className="text-[0.75rem]">Email: zuiya.mambula@gmail.com</p>
+                <p className="text-[0.75rem]">Email: BRIKIN</p>
               </div>
 
               <div className="rounded-3xl bg-white p-3">
