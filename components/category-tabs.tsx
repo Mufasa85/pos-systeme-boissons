@@ -1,15 +1,15 @@
-"use client"
+"use client";
 
-import type { CategoryId } from "@/lib/types"
-import { categories } from "@/lib/data"
-import { cn } from "@/lib/utils"
+import type { Category, CategoryId } from "@/lib/types";
 
 export function CategoryTabs({
+  categories,
   active,
   onChange,
 }: {
-  active: CategoryId
-  onChange: (id: CategoryId) => void
+  categories: Category[];
+  active: CategoryId;
+  onChange: (id: CategoryId) => void;
 }) {
   return (
     <div className="w-full max-w-sm">
@@ -32,5 +32,5 @@ export function CategoryTabs({
         ))}
       </select>
     </div>
-  )
+  );
 }
