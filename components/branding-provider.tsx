@@ -7,7 +7,9 @@ import {
   useEffect,
   useMemo,
   useState,
+  type ReactNode,
 } from "react";
+import { fetchBranding, type ApiBranding } from "@/lib/api";
 import type { Branding } from "@/lib/types";
 
 const defaultBranding: Branding = {
@@ -43,14 +45,48 @@ function readableForeground(hex: string): string {
   return luminance > 0.6 ? "#1a1a1a" : "#ffffff";
 }
 
-export function BrandingProvider({ children }: { children: React.ReactNode }) {
+function apiBrandingToLocal(api: ApiBranding): Branding {
+  return {
+    companyName: api.companyName,
+    tagline: api.tagline,
+    logoText: api.logoText,
+    logoImage: api.logoImage ?? "",
+    primaryColor: api.primaryColor,
+    secondaryColor: api.secondaryColor,
+  };
+}
+
+export function BrandingProvider({ children }: { children: ReactNode }) {
+  // Start with the bundled default so SSR / first paint is stable.
   const [branding, setBrandingState] = useState<Branding>(defaultBranding);
 
   const setBranding = useCallback((b: Partial<Branding>) => {
     setBrandingState((prev) => ({ ...prev, ...b }));
   }, []);
 
+  // Pull the official branding from the API on mount, then apply
+  // the user's local overrides (if any) on top. This way the
+  // company name, address, ID Nat, etc. shown in invoices are
+  // always the ones stored in the database, not hard-coded mocks.
   useEffect(() => {
+    let cancelled = false;
+    fetchBranding()
+      .then((api) => {
+        if (cancelled) return;
+        setBrandingState(apiBrandingToLocal(api));
+      })
+      .catch(() => {
+        // Silent fallback to the bundled default if the API is
+        // unreachable (e.g. during a network blip at boot).
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Persist the live value so subsequent mount can use it.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
     const root = document.documentElement;
     root.style.setProperty("--brand", branding.primaryColor);
     root.style.setProperty(
@@ -58,29 +94,9 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
       readableForeground(branding.primaryColor),
     );
     root.style.setProperty("--brand-secondary", branding.secondaryColor);
-
-    // Persist branding to localStorage so user settings survive reloads.
-    try {
-      localStorage.setItem("branding", JSON.stringify(branding));
-    } catch (e) {
-      // ignore
-    }
   }, [branding]);
 
-  // Load persisted branding on mount
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("branding");
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        setBrandingState((prev) => ({ ...prev, ...parsed }));
-      }
-    } catch (e) {
-      // ignore
-    }
-  }, []);
-
-  const value = useMemo(
+  const value = useMemo<BrandingContextValue>(
     () => ({ branding, setBranding }),
     [branding, setBranding],
   );
