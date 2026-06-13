@@ -1,7 +1,26 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { Edit3, Plus, Trash2 } from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Edit3,
+  Image as ImageIcon,
+  Loader2,
+  Plus,
+  RefreshCw,
+  Trash2,
+  UploadCloud,
+  X,
+} from "lucide-react";
+import Image from "next/image";
 import { PosShell } from "@/components/pos-shell";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,24 +31,51 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { drinks, categories } from "@/lib/data";
-import type { CategoryId, Drink } from "@/lib/types";
+import {
+  ApiError,
+  createProduct,
+  deleteProduct,
+  updateProduct,
+  uploadProductImage,
+  type ApiCategory,
+  type ApiProduct,
+} from "@/lib/api";
+import { useCatalog } from "@/lib/use-catalog";
+import { cn } from "@/lib/utils";
 
-const defaultForm = {
+// ----------------------------------------------------------------
+// Stock form shape (front-end local). `category` is a *slug*
+// (`CategoryId` like "whiskies", "vins", …) because the rest of
+// the front-end uses slugs to filter and label products. The
+// slug → `categoryId` (numeric) translation happens at submit
+// time using the API categories list.
+// ----------------------------------------------------------------
+
+const FALLBACK_FORM_CATEGORY = "all" as const;
+
+type StockForm = {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  category: string;
+  image: string;
+  stock: number;
+  popularity: number;
+  sizes: string;
+};
+
+const defaultForm: StockForm = {
   id: "",
   name: "",
   description: "",
   price: 0,
-  category: "coffee" as CategoryId,
+  category: FALLBACK_FORM_CATEGORY,
   image: "/drinks/placeholder.png",
   stock: 0,
   popularity: 0,
   sizes: "S,M,L",
 };
-
-function formatSizes(sizes?: string[]) {
-  return sizes?.join(", ") ?? "";
-}
 
 function parseSizes(raw: string) {
   return raw
@@ -38,30 +84,65 @@ function parseSizes(raw: string) {
     .filter(Boolean);
 }
 
-function makeId() {
-  if (
-    typeof crypto !== "undefined" &&
-    typeof crypto.randomUUID === "function"
-  ) {
-    return crypto.randomUUID();
-  }
-  return `prod-${Date.now()}`;
-}
-
 export default function StockPage() {
-  const [products, setProducts] = useState<Drink[]>(drinks);
-  const [form, setForm] = useState({ ...defaultForm });
-  const [editingId, setEditingId] = useState<string | null>(null);
+  // `apiCategories` is the raw API list (with `id` and `slug`)
+  // — what we need to map the form's slug → numeric `categoryId`.
+  const { apiProducts, apiCategories, drinks, loading, error, refetch } =
+    useCatalog();
+  const [products, setProducts] = useState<ApiProduct[]>([]);
+  const [form, setForm] = useState<StockForm>({ ...defaultForm });
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const low = products.filter((d) => d.stock <= 15);
-  const categoryOptions = categories.filter(
-    (category) => category.id !== "all",
+  // Sync the API catalog into local editable state. We use the
+  // raw API products (not the local mapped `drinks`) so the table
+  // has access to `categoryId`, `imageUrl`, `stockQuantity` etc.
+  useEffect(() => {
+    setProducts(apiProducts);
+  }, [apiProducts]);
+
+  const low = useMemo(
+    () => products.filter((d) => d.stockQuantity <= 15),
+    [products],
   );
+  const categoryOptions = useMemo(
+    () => apiCategories.filter((category) => category.slug !== "all"),
+    [apiCategories],
+  );
+
+  // The dropdown must always have a valid value — pick the first
+  // available API category as the default slug when the form is
+  // reset.
+  const firstCategorySlug = categoryOptions[0]?.slug ?? FALLBACK_FORM_CATEGORY;
+
+  // ------- Image preview handling -------
+  // Whenever the user picks a file, we create a local object URL
+  // so the preview updates immediately. We revoke the previous URL
+  // on cleanup to avoid leaking memory.
+  useEffect(() => {
+    if (!imageFile) {
+      setImagePreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(imageFile);
+    setImagePreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [imageFile]);
 
   function resetForm() {
     setEditingId(null);
-    setForm({ ...defaultForm });
+    setForm({ ...defaultForm, category: firstCategorySlug });
+    setFormError(null);
+    setImageFile(null);
+    setUploadProgress(null);
   }
 
   function closeDialog() {
@@ -69,184 +150,458 @@ export default function StockPage() {
     resetForm();
   }
 
-  function handleEdit(product: Drink) {
+  function handleEdit(product: ApiProduct) {
     setEditingId(product.id);
     setForm({
-      id: product.id,
+      id: String(product.id),
       name: product.name,
-      description: product.description,
-      price: product.price,
-      category: product.category,
-      image: product.image,
-      stock: product.stock,
-      popularity: product.popularity,
-      sizes: formatSizes(product.sizes),
+      description: product.description ?? "",
+      price: Number(product.price) || 0,
+      category:
+        product.category?.slug ??
+        categoryOptions.find((c) => c.id === product.categoryId)?.slug ??
+        firstCategorySlug,
+      image: product.imageUrl || "/drinks/placeholder.png",
+      stock: product.stockQuantity ?? 0,
+      popularity: product.popularity ?? 0,
+      sizes: (product.sizes ?? []).map((s) => s.label).join(", "),
     });
+    setImageFile(null);
+    setUploadProgress(null);
     setDialogOpen(true);
   }
 
-  function handleDelete(id: string) {
-    setProducts((prev) => prev.filter((product) => product.id !== id));
-    if (editingId === id) {
-      closeDialog();
+  async function handleDelete(id: number) {
+    if (deletingId === id) return;
+    setDeletingId(id);
+    setFormError(null);
+    try {
+      await deleteProduct(id);
+      setProducts((prev) => prev.filter((product) => product.id !== id));
+      if (editingId === id) {
+        closeDialog();
+      }
+      setSuccessMessage("Produit supprimé avec succès.");
+      setTimeout(() => setSuccessMessage(null), 2500);
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : "Impossible de supprimer ce produit.";
+      setFormError(message);
+    } finally {
+      setDeletingId(null);
     }
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function pickImageFile() {
+    fileInputRef.current?.click();
+  }
+
+  function onFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setFormError("Le fichier doit être une image (jpg, png, webp, …).");
+      return;
+    }
+    setFormError(null);
+    setImageFile(file);
+  }
+
+  function clearImageFile() {
+    setImageFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  async function uploadImageIfNeeded(): Promise<string | undefined> {
+    if (!imageFile) return undefined;
+    setUploadProgress(0);
+    try {
+      const result = await uploadProductImage(imageFile, (percent) => {
+        setUploadProgress(percent);
+      });
+      setUploadProgress(null);
+      return result.url;
+    } catch (err) {
+      setUploadProgress(null);
+      const message =
+        err instanceof ApiError ? err.message : "Échec de l'upload de l'image.";
+      throw new Error(message);
+    }
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (saving) return;
+    setFormError(null);
 
-    const item: Drink = {
-      id: editingId ?? makeId(),
-      name: form.name.trim(),
-      description: form.description.trim(),
-      price: Number(form.price),
-      category: form.category,
-      image: form.image.trim() || "/drinks/placeholder.png",
-      stock: Number(form.stock),
-      popularity: Number(form.popularity),
-      sizes: parseSizes(form.sizes),
-    };
-
-    if (!item.name) {
+    const name = form.name.trim();
+    if (!name) {
+      setFormError("Le nom du produit est obligatoire.");
+      return;
+    }
+    const category = apiCategories.find((c) => c.slug === form.category);
+    if (!category) {
+      setFormError("Catégorie invalide. Recharge la page et réessaie.");
       return;
     }
 
-    setProducts((prev) => {
-      if (editingId) {
-        return prev.map((product) =>
-          product.id === editingId ? item : product,
-        );
+    setSaving(true);
+    try {
+      // 1. Upload the image first if a new file was picked.
+      let imageUrl: string | undefined = form.image;
+      try {
+        const uploaded = await uploadImageIfNeeded();
+        if (uploaded) imageUrl = uploaded;
+      } catch (err) {
+        setSaving(false);
+        setFormError(err instanceof Error ? err.message : "Échec de l'upload.");
+        return;
       }
-      return [item, ...prev];
-    });
 
-    closeDialog();
+      const sizes = parseSizes(form.sizes).map((label) => ({
+        label,
+        priceExtra: 0,
+      }));
+
+      const payload = {
+        name,
+        description: form.description.trim() || "",
+        price: Number(form.price) || 0,
+        categoryId: category.id,
+        imageUrl: imageUrl || "/drinks/placeholder.png",
+        stockQuantity: Number(form.stock) || 0,
+        popularidad: Number(form.popularity) || 0,
+        isActive: true,
+        sizes,
+      };
+
+      if (editingId !== null) {
+        const updated = await updateProduct(editingId, payload);
+        setProducts((prev) =>
+          prev.map((p) => (p.id === editingId ? updated : p)),
+        );
+        setSuccessMessage(`« ${updated.name} » mis à jour avec succès.`);
+      } else {
+        const created = await createProduct(payload);
+        setProducts((prev) => [created, ...prev]);
+        setSuccessMessage(`« ${created.name} » ajouté au catalogue.`);
+      }
+
+      // Force a refetch of the global catalog so the POS / Menu
+      // pages see the change instantly.
+      refetch();
+
+      setTimeout(() => setSuccessMessage(null), 3000);
+      closeDialog();
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : "Impossible d'enregistrer le produit.";
+      setFormError(message);
+    } finally {
+      setSaving(false);
+    }
   }
+
+  const previewSrc = imagePreview ?? form.image;
 
   return (
     <PosShell active="stock" title="Stock">
-      <div className="glass rounded-3xl p-5 mb-4">
+      <div className="glass mb-4 rounded-3xl p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-semibold">Gestion des produits</p>
             <p className="text-xs text-muted-foreground">
-              Ouvre le formulaire au centre pour ajouter ou modifier un produit.
+              {loading
+                ? "Synchronisation avec l'API…"
+                : "Données chargées depuis l'API Express."}
             </p>
           </div>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => {
-              resetForm();
-              setDialogOpen(true);
-            }}
-          >
-            <Plus className="h-4 w-4" /> Nouveau produit
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={refetch}
+              disabled={loading}
+              className="gap-2"
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
+              />
+              Recharger
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                resetForm();
+                setDialogOpen(true);
+              }}
+              disabled={loading && drinks.length === 0}
+              className="gap-2"
+            >
+              <Plus className="h-4 w-4" /> Nouveau produit
+            </Button>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-        <div className="glass-strong rounded-3xl p-5 lg:col-span-2">
-          <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-semibold">Liste d'inventaire</p>
+      {successMessage ? (
+        <div className="mb-4 flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          <CheckCircle2 className="h-4 w-4" />
+          {successMessage}
+        </div>
+      ) : null}
+
+      {error ? (
+        <div className="glass flex flex-col items-center gap-3 rounded-3xl p-10 text-center text-sm text-muted-foreground">
+          <AlertCircle className="h-8 w-8 text-destructive" />
+          <p className="font-semibold text-foreground">Stock indisponible</p>
+          <p className="max-w-sm">{error}</p>
+          <button
+            type="button"
+            onClick={refetch}
+            className="mt-2 inline-flex items-center gap-2 rounded-2xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            Réessayer
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+          <div className="glass-strong lg:col-span-2 rounded-3xl p-5">
+            <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold">Liste d'inventaire</p>
+                <p className="text-xs text-muted-foreground">
+                  Mis à jour depuis l'API
+                </p>
+              </div>
               <p className="text-xs text-muted-foreground">
-                Mis à jour aujourd'hui
+                {products.length} produits en stock
               </p>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {products.length} produits en stock
-            </p>
-          </div>
 
-          <div className="space-y-2">
-            {products.map((d) => {
-              const pct = Math.min((d.stock / 80) * 100, 100);
-              const danger = d.stock <= 15;
-              return (
-                <div
-                  key={d.id}
-                  className="flex flex-col gap-2 rounded-2xl bg-muted/40 p-3 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div>
-                    <p className="text-sm font-semibold">{d.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {d.category}
-                    </p>
-                  </div>
-
-                  <div className="min-w-0 flex-1 sm:px-4">
-                    <p className="text-xs text-muted-foreground">
-                      {d.stock} en stock
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEdit(d)}
-                      className="gap-2"
-                    >
-                      <Edit3 className="h-3.5 w-3.5" />
-                      Modifier
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDelete(d.id)}
-                      className="gap-2"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      Supprimer
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="glass rounded-3xl p-5">
-          <p className="text-sm font-semibold">Stock bas</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Produits ≤ 15 unités
-          </p>
-          <div className="mt-4 space-y-2">
-            {low.length === 0 ? (
-              <div className="rounded-2xl bg-muted/40 p-3 text-sm text-muted-foreground">
-                Tout va bien.
+            {loading && products.length === 0 ? (
+              <div className="space-y-2">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-16 animate-pulse rounded-2xl bg-muted/40"
+                    aria-hidden
+                  />
+                ))}
+              </div>
+            ) : products.length === 0 ? (
+              <div className="rounded-2xl bg-muted/40 p-6 text-center text-sm text-muted-foreground">
+                Aucun produit. Clique sur « Nouveau produit » pour commencer.
               </div>
             ) : (
-              low.map((d) => (
-                <div
-                  key={d.id}
-                  className="flex items-center justify-between rounded-2xl bg-muted/40 p-3"
-                >
-                  <p className="text-sm font-semibold">{d.name}</p>
-                  <p className="text-xs font-bold text-destructive">
-                    {d.stock}
-                  </p>
-                </div>
-              ))
+              <div className="space-y-2">
+                {products.map((d) => {
+                  const danger = d.stockQuantity <= 15;
+                  return (
+                    <div
+                      key={d.id}
+                      className="flex items-center gap-3 rounded-2xl bg-muted/40 p-2"
+                    >
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-card">
+                        {d.imageUrl ? (
+                          <Image
+                            src={d.imageUrl}
+                            alt={d.name}
+                            width={48}
+                            height={48}
+                            unoptimized
+                            className="h-12 w-12 object-cover"
+                          />
+                        ) : (
+                          <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold">
+                          {d.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {d.category?.slug ?? d.categoryId} ·{" "}
+                          {Number(d.price).toFixed(2)} $ · {d.stockQuantity} en
+                          stock
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(d)}
+                          className="gap-2"
+                        >
+                          <Edit3 className="h-3.5 w-3.5" />
+                          Modifier
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          disabled={deletingId === d.id}
+                          onClick={() => handleDelete(d.id)}
+                          className="gap-2"
+                        >
+                          {deletingId === d.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-3.5 w-3.5" />
+                          )}
+                          Supprimer
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
-        </div>
-      </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <div className="glass rounded-3xl p-5">
+            <p className="text-sm font-semibold">Stock bas</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Produits ≤ 15 unités
+            </p>
+            <div className="mt-4 space-y-2">
+              {low.length === 0 ? (
+                <div className="rounded-2xl bg-muted/40 p-3 text-sm text-muted-foreground">
+                  Tout va bien.
+                </div>
+              ) : (
+                low.map((d) => (
+                  <div
+                    key={d.id}
+                    className="flex items-center justify-between rounded-2xl bg-muted/40 p-3"
+                  >
+                    <p className="truncate text-sm font-semibold">{d.name}</p>
+                    <p className="text-xs font-bold text-destructive">
+                      {d.stockQuantity}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => (open ? setDialogOpen(true) : closeDialog())}
+      >
         <DialogContent className="max-w-3xl p-6">
           <DialogHeader>
             <DialogTitle>
-              {editingId ? "Modifier un produit" : "Ajouter un produit"}
+              {editingId !== null ? "Modifier le produit" : "Nouveau produit"}
             </DialogTitle>
             <DialogDescription>
-              Remplis le formulaire pour ajouter ou mettre à jour un produit.
+              Les modifications sont envoyées à l'API Express (table{" "}
+              <code>products</code>). L'image est uploadée séparément sur{" "}
+              <code>/api/uploads/image</code>.
             </DialogDescription>
           </DialogHeader>
 
           <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
+            {/* Image upload + preview (spans both columns) */}
+            <div className="md:col-span-2 space-y-2">
+              <p className="text-sm font-medium text-muted-foreground">
+                Photo du produit
+              </p>
+              <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+                <div className="relative flex h-32 w-32 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-dashed border-border bg-muted/40">
+                  {previewSrc ? (
+                    // Local object URLs (`blob:`) are not optimisable
+                    // by next/image, so we use a plain <img>.
+                    previewSrc.startsWith("blob:") ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={previewSrc}
+                        alt="Aperçu"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <Image
+                        src={previewSrc}
+                        alt="Aperçu"
+                        fill
+                        unoptimized
+                        sizes="8rem"
+                        className="object-cover"
+                      />
+                    )
+                  ) : (
+                    <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="flex flex-1 flex-col gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={onFileChange}
+                    className="hidden"
+                  />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={pickImageFile}
+                      className="gap-2"
+                    >
+                      <UploadCloud className="h-3.5 w-3.5" />
+                      {imageFile ? "Changer l'image" : "Téléverser une image"}
+                    </Button>
+                    {imageFile ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={clearImageFile}
+                        className="gap-2 text-muted-foreground"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                        Retirer
+                      </Button>
+                    ) : null}
+                    {imageFile ? (
+                      <span className="max-w-[200px] truncate text-xs text-muted-foreground">
+                        {imageFile.name} · {(imageFile.size / 1024).toFixed(1)}{" "}
+                        Ko
+                      </span>
+                    ) : null}
+                  </div>
+                  {uploadProgress !== null ? (
+                    <div className="space-y-1">
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full brand-bg transition-all"
+                          style={{ width: `${uploadProgress}%` }}
+                        />
+                      </div>
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                        Upload {uploadProgress}%
+                      </p>
+                    </div>
+                  ) : null}
+                  <p className="text-[11px] text-muted-foreground">
+                    JPEG, PNG ou WebP. L'image est uploadée sur{" "}
+                    <code className="rounded bg-muted px-1 py-0.5">
+                      /api/uploads/image
+                    </code>{" "}
+                    et l'URL est enregistrée avec le produit.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <label
                 htmlFor="product-name"
@@ -260,7 +615,8 @@ export default function StockPage() {
                 onChange={(event) =>
                   setForm((prev) => ({ ...prev, name: event.target.value }))
                 }
-                placeholder="Nom"
+                placeholder="Ex. Hennessy VS"
+                required
                 className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
               />
             </div>
@@ -278,16 +634,23 @@ export default function StockPage() {
                 onChange={(event) =>
                   setForm((prev) => ({
                     ...prev,
-                    category: event.target.value as CategoryId,
+                    category: event.target.value,
                   }))
                 }
-                className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+                disabled={categoryOptions.length === 0}
+                className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 disabled:opacity-50"
               >
-                {categoryOptions.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.label}
+                {categoryOptions.length > 0 ? (
+                  categoryOptions.map((category) => (
+                    <option key={category.id} value={category.slug}>
+                      {category.label}
+                    </option>
+                  ))
+                ) : (
+                  <option value={FALLBACK_FORM_CATEGORY} disabled>
+                    Chargement des catégories…
                   </option>
-                ))}
+                )}
               </select>
             </div>
 
@@ -296,7 +659,7 @@ export default function StockPage() {
                 htmlFor="product-price"
                 className="text-sm font-medium text-muted-foreground"
               >
-                Prix
+                Prix (USD)
               </label>
               <input
                 id="product-price"
@@ -336,33 +699,65 @@ export default function StockPage() {
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="md:col-span-2 space-y-2">
               <label
-                htmlFor="product-image"
+                htmlFor="product-description"
                 className="text-sm font-medium text-muted-foreground"
               >
-                Image
+                Description
               </label>
-              <input
-                id="product-image"
-                value={form.image}
+              <textarea
+                id="product-description"
+                value={form.description}
                 onChange={(event) =>
-                  setForm((prev) => ({ ...prev, image: event.target.value }))
+                  setForm((prev) => ({
+                    ...prev,
+                    description: event.target.value,
+                  }))
                 }
-                placeholder="URL de l'image"
+                placeholder="Description affichée dans le menu…"
+                rows={2}
                 className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
               />
             </div>
 
+            {formError ? (
+              <div
+                role="alert"
+                className="md:col-span-2 flex items-start gap-2 rounded-2xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+              >
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{formError}</span>
+              </div>
+            ) : null}
+
             <div className="md:col-span-2">
-              <Button type="submit" className="w-full justify-center">
-                {editingId ? "Mettre à jour le produit" : "Ajouter le produit"}
+              <Button
+                type="submit"
+                className="w-full justify-center"
+                disabled={saving || categoryOptions.length === 0}
+              >
+                {saving ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {imageFile ? "Upload + enregistrement…" : "Enregistrement…"}
+                  </span>
+                ) : editingId !== null ? (
+                  "Enregistrer les modifications"
+                ) : (
+                  "Créer le produit"
+                )}
               </Button>
             </div>
           </form>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={closeDialog}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={closeDialog}
+              disabled={saving}
+            >
               Annuler
             </Button>
           </DialogFooter>
