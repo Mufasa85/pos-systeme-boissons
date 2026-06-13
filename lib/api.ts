@@ -48,8 +48,8 @@ interface RequestOptions {
   // Optional override (e.g. when the endpoint is outside /api)
   path?: string
   // Skip Authorization header (e.g. for /login)
-  anonymous?: boolean
-  signal?: AbortSignal
+  anonymous?: boolean;
+  signal?: AbortSignal;
 }
 
 export async function apiRequest<T = unknown>(
@@ -61,7 +61,7 @@ export async function apiRequest<T = unknown>(
     path,
     anonymous = false,
     signal,
-  } = options
+  } = options;
 
   const url = path ?? API_BASE_URL
 
@@ -156,5 +156,363 @@ export async function fetchCurrentCashier(): Promise<Cashier> {
   return apiRequest<Cashier>({
     method: "GET",
     path: `${API_BASE_URL}/cashiers`,
-  })
+  });
+}
+
+// ---------- Catalog (categories + products) ----------
+
+/** A category as returned by the backend. */
+export interface ApiCategory {
+  id: number;
+  label: string;
+  slug: string;
+  createdAt?: string;
+}
+
+/** A product size as returned by the backend. */
+export interface ApiProductSize {
+  id: number;
+  productId: number;
+  label: string;
+  priceExtra: number | string;
+}
+
+/** A product as returned by the backend. */
+export interface ApiProduct {
+  id: number;
+  name: string;
+  description: string;
+  price: number | string;
+  categoryId: number;
+  imageUrl: string;
+  stockQuantity: number;
+  popularity: number;
+  isActive: boolean;
+  // Included by the backend via eager loading:
+  category?: ApiCategory | null;
+  sizes?: ApiProductSize[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/** Paginated response shape returned by GET /products. */
+export interface ApiPaginated<T> {
+  rows: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface FetchProductsParams {
+  q?: string;
+  category?: number | string;
+  page?: number;
+  limit?: number;
+  includeInactive?: boolean;
+}
+
+export async function fetchCategories(): Promise<ApiCategory[]> {
+  return apiRequest<ApiCategory[]>({
+    method: "GET",
+    path: `${API_BASE_URL}/categories`,
+  });
+}
+
+export async function fetchBranding(): Promise<ApiBranding> {
+  return apiRequest<ApiBranding>({
+    method: "GET",
+    path: `${API_BASE_URL}/branding`,
+  });
+}
+
+export async function updateBranding(
+  payload: Partial<ApiBranding>,
+): Promise<ApiBranding> {
+  return apiRequest<ApiBranding>({
+    method: "PUT",
+    path: `${API_BASE_URL}/branding`,
+    body: payload,
+  });
+}
+
+export interface ApiBranding {
+  id?: number;
+  companyName: string;
+  tagline: string;
+  logoText: string;
+  logoImage?: string | null;
+  primaryColor: string;
+  secondaryColor: string;
+  idNat: string;
+  rccm: string;
+  taxNumber: string;
+  address: string;
+  phone: string;
+  email: string;
+  updatedAt?: string;
+}
+
+// ---------- Orders ----------
+
+/** An order item as returned by the backend. */
+export interface ApiOrderItem {
+  id: number;
+  orderId: number;
+  productId: number;
+  sizeId: number | null;
+  quantity: number;
+  unitPrice: number | string;
+  lineTotal: number | string;
+  position: number;
+  product?: ApiProduct;
+  size?: ApiProductSize;
+}
+
+/** A payment as returned by the backend. */
+export interface ApiPayment {
+  id: number;
+  orderId: number;
+  method: "cash" | "card" | "mobile" | "other";
+  amount: number | string;
+  reference: string | null;
+  paidAt: string;
+}
+
+export interface ApiOrder {
+  id: number;
+  orderNumber: string;
+  cashierId: number;
+  customerId: number | null;
+  status: "pending" | "paid" | "refunded" | "cancelled";
+  subtotal: number | string;
+  taxRate: number | string;
+  taxAmount: number | string;
+  totalAmount: number | string;
+  currency: string;
+  fxRate: number | string;
+  createdAt: string;
+  paidAt: string | null;
+  items?: ApiOrderItem[];
+  payment?: ApiPayment;
+  cashier?: Pick<Cashier, "id" | "code" | "fullName">;
+  customer?: unknown;
+}
+
+export interface CreateOrderItem {
+  productId: number;
+  sizeId?: number;
+  quantity: number;
+}
+
+export interface CreateOrderPayload {
+  items: CreateOrderItem[];
+  customerId?: number;
+  currency?: string;
+}
+
+export interface PayOrderPayload {
+  method: "cash" | "card" | "mobile" | "other";
+  amount: number;
+  reference?: string;
+}
+
+export async function createOrder(
+  payload: CreateOrderPayload,
+): Promise<ApiOrder> {
+  return apiRequest<ApiOrder>({
+    method: "POST",
+    path: `${API_BASE_URL}/orders`,
+    body: payload,
+  });
+}
+
+export async function payOrder(
+  orderId: number,
+  payload: PayOrderPayload,
+): Promise<ApiOrder> {
+  return apiRequest<ApiOrder>({
+    method: "POST",
+    path: `${API_BASE_URL}/orders/${orderId}/pay`,
+    body: payload,
+  });
+}
+
+export interface FetchOrdersParams {
+  status?: string;
+  cashierId?: number | string;
+  from?: string;
+  to?: string;
+  page?: number;
+  limit?: number;
+}
+
+export async function fetchOrders(
+  params: FetchOrdersParams = {},
+): Promise<ApiOrder[]> {
+  const search = new URLSearchParams();
+  if (params.status) search.set("status", params.status);
+  if (params.cashierId !== undefined) search.set("cashierId", String(params.cashierId));
+  if (params.from) search.set("from", params.from);
+  if (params.to) search.set("to", params.to);
+  if (params.page) search.set("page", String(params.page));
+  if (params.limit) search.set("limit", String(params.limit));
+
+  const query = search.toString();
+  return apiRequest<ApiOrder[]>({
+    method: "GET",
+    path: `${API_BASE_URL}/orders${query ? `?${query}` : ""}`,
+  });
+}
+
+export interface ApiUploadResult {
+  filename: string;
+  url: string;
+  size?: number;
+  mimetype?: string;
+}
+
+export async function uploadProductImage(
+  file: File,
+  onProgress?: (percent: number) => void,
+): Promise<ApiUploadResult> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${API_BASE_URL}/uploads/image`);
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && onProgress) {
+        const percent = Math.round((event.loaded / event.total) * 100);
+        onProgress(percent);
+      }
+    };
+    xhr.onload = () => {
+      let payload: any = null;
+      try {
+        payload = JSON.parse(xhr.responseText);
+      } catch {
+        // ignore — handled below
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        const data =
+          payload && "data" in payload ? payload.data : (payload as ApiUploadResult);
+        resolve(data);
+        return;
+      }
+      const message =
+        (payload && payload.message) ||
+        `Upload failed (${xhr.status})`;
+      reject(new ApiError(message, xhr.status));
+    };
+    xhr.onerror = () => {
+      reject(new ApiError("Network error during upload", 0));
+    };
+    const form = new FormData();
+    form.append("image", file);
+    xhr.send(form);
+  });
+}
+
+export interface ProductSizeInput {
+  label: string;
+  priceExtra?: number;
+}
+
+export interface ProductPayload {
+  name: string;
+  description?: string;
+  price: number;
+  categoryId: number;
+  imageUrl?: string;
+  stockQuantity?: number;
+  popularity?: number;
+  isActive?: boolean;
+  sizes?: ProductSizeInput[];
+}
+
+export async function createProduct(
+  payload: ProductPayload,
+): Promise<ApiProduct> {
+  return apiRequest<ApiProduct>({
+    method: "POST",
+    path: `${API_BASE_URL}/products`,
+    body: payload,
+  });
+}
+
+export async function updateProduct(
+  id: number,
+  payload: ProductPayload,
+): Promise<ApiProduct> {
+  return apiRequest<ApiProduct>({
+    method: "PUT",
+    path: `${API_BASE_URL}/products/${id}`,
+    body: payload,
+  });
+}
+
+export async function deleteProduct(id: number): Promise<void> {
+  await apiRequest<null>({
+    method: "DELETE",
+    path: `${API_BASE_URL}/products/${id}`,
+  });
+}
+
+export async function fetchProduct(id: number): Promise<ApiProduct> {
+  return apiRequest<ApiProduct>({
+    method: "GET",
+    path: `${API_BASE_URL}/products/${id}`,
+  });
+}
+
+export async function fetchProducts(
+  params: FetchProductsParams = {},
+): Promise<ApiPaginated<ApiProduct>> {
+  const search = new URLSearchParams();
+  if (params.q) search.set("q", params.q);
+  if (params.category !== undefined)
+    search.set("category", String(params.category));
+  if (params.page) search.set("page", String(params.page));
+  if (params.limit) search.set("limit", String(params.limit));
+  if (params.includeInactive) search.set("includeInactive", "true");
+  const qs = search.toString();
+  // The /products endpoint returns `{ success, data, meta }` (not
+  // `paginated`), so we hit it raw instead of going through the
+  // generic `apiRequest` shortcut.
+  const token = getStoredToken();
+  const res = await fetch(
+    `${API_BASE_URL}/products${qs ? `?${qs}` : ""}`,
+    {
+      headers: {
+        Accept: "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    },
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    let message = `Request failed (${res.status})`;
+    try {
+      const payload = JSON.parse(text);
+      if (payload?.message) message = payload.message;
+    } catch {
+      // ignore
+    }
+    throw new ApiError(message, res.status);
+  }
+  const payload = await res.json();
+  const data = (payload && "data" in payload ? payload.data : payload) as
+    | ApiProduct[]
+    | { rows: ApiProduct[]; total: number; page: number; limit: number; totalPages: number };
+  // Normalise: backend returns the array directly, but we want
+  // a paginated shape for the front-end.
+  if (Array.isArray(data)) {
+    return {
+      rows: data,
+      total: data.length,
+      page: 1,
+      limit: data.length,
+      totalPages: 1,
+    };
+  }
+  return data as ApiPaginated<ApiProduct>;
 }
