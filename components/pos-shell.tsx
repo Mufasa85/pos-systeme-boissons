@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { BrandingProvider } from "@/components/branding-provider"
-import { BrandingDialog } from "@/components/branding-dialog"
-import { Sidebar } from "@/components/sidebar"
-import { Topbar } from "@/components/topbar"
+import { useState } from "react";
+import { BrandingProvider } from "@/components/branding-provider";
+import { BrandingDialog } from "@/components/branding-dialog";
+import { Sidebar } from "@/components/sidebar";
+import { Topbar } from "@/components/topbar";
 
 export function PosShell({
   active,
@@ -12,15 +12,14 @@ export function PosShell({
   queryPlaceholder = "Search...",
   children,
 }: {
-  active: string
-  title: string
-  queryPlaceholder?: string
-  children: React.ReactNode
+  active: string;
+  title: string;
+  queryPlaceholder?: string;
+  children: React.ReactNode;
 }) {
-
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [query, setQuery] = useState("")
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [query, setQuery] = useState("");
 
   return (
     <BrandingProvider>
@@ -37,10 +36,14 @@ export function PosShell({
                     ? "/menu"
                     : id === "stock"
                       ? "/stock"
-                      : id === "reports"
-                        ? "/reports"
-                        : "/history"
-            window.location.href = nextPath
+                      : id === "categories"
+                        ? "/categories"
+                        : id === "users"
+                          ? "/users"
+                          : id === "reports"
+                            ? "/reports"
+                            : "/history";
+            window.location.href = nextPath;
           }}
           onOpenSettings={() => setSettingsOpen(true)}
         />
@@ -68,6 +71,5 @@ export function PosShell({
         <BrandingDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       </div>
     </BrandingProvider>
-  )
+  );
 }
-
