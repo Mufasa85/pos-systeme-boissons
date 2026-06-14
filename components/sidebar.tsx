@@ -4,24 +4,37 @@ import { useRouter } from "next/navigation";
 import {
   BarChart3,
   Coffee,
+  FolderTree,
   History,
   LayoutDashboard,
   LogOut,
   Package,
   Settings,
   ShoppingBag,
+  Users,
   X,
 } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 import { useMobileSidebar } from "@/components/mobile-sidebar";
 import { useBranding } from "@/components/branding-provider";
+import {
+  canAccessNav,
+  hasCapability,
+  NAV_PATHS,
+  type NavKey,
+} from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
-const navItems = [
+// All possible nav entries. We filter this list against the
+// logged-in cashier's role at render time so a manager or a
+// cashier simply doesn't see the pages they can't access.
+const allNavItems: { id: NavKey; label: string; icon: typeof ShoppingBag }[] = [
   { id: "pos", label: "Point of Sale", icon: ShoppingBag },
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "menu", label: "Menu", icon: Coffee },
   { id: "stock", label: "Stock", icon: Package },
+  { id: "categories", label: "Catégories", icon: FolderTree },
+  { id: "users", label: "Utilisateurs", icon: Users },
   { id: "reports", label: "Reports", icon: BarChart3 },
   { id: "history", label: "History", icon: History },
 ];
@@ -40,13 +53,21 @@ export function Sidebar({
   const { open, setOpen } = useMobileSidebar();
   const router = useRouter();
 
+  // Filter the full nav list against the connected role. If
+  // something is off (no cashier yet), we fall back to the
+  // safest possible list — the POS.
+  const role = cashier?.role;
+  const visibleNavItems = allNavItems.filter((item) =>
+    canAccessNav(role, item.id),
+  );
+
   function handleLogout() {
     logout();
     setOpen(false);
     router.replace("/login");
   }
 
-  function handleNav(id: string) {
+  function handleNav(id: NavKey) {
     onChange(id);
     setOpen(false);
   }
@@ -107,7 +128,7 @@ export function Sidebar({
           </div>
 
           <nav className="mt-8 flex flex-1 flex-col gap-1.5">
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = active === item.id;
               return (
@@ -130,14 +151,17 @@ export function Sidebar({
           </nav>
 
           <div className="mt-4 flex flex-col gap-1.5 border-t border-border pt-4">
-            <button
-              type="button"
-              onClick={handleSettings}
-              className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <Settings className="h-5 w-5" />
-              Branding
-            </button>
+            {/* Branding settings are only exposed to admins. */}
+            {hasCapability(role, "manageBranding") ? (
+              <button
+                type="button"
+                onClick={handleSettings}
+                className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <Settings className="h-5 w-5" />
+                Branding
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={handleLogout}
@@ -167,3 +191,7 @@ export function Sidebar({
     </>
   );
 }
+
+// Re-export so the pos-shell that builds the URL from a nav id
+// doesn't have to import NAV_PATHS separately.
+export { NAV_PATHS };
