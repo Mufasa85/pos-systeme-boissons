@@ -5,16 +5,21 @@ import { useRouter } from "next/navigation";
 import {
   AlertCircle,
   Banknote,
+  Building2,
   CheckCircle2,
   CreditCard,
   Loader2,
   Lock,
+  Mail,
+  MapPin,
   Minus,
   MoreVertical,
+  Phone,
   Plus,
   Printer,
   Smartphone,
   Trash2,
+  User as UserIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -34,7 +39,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ApiError, createOrder, payOrder, type ApiOrder } from "@/lib/api";
+import { CustomerDialog } from "@/components/customer-dialog";
+import {
+  ApiCustomer,
+  ApiError,
+  createOrder,
+  payOrder,
+  type ApiOrder,
+} from "@/lib/api";
 import { useFiscalInfo } from "@/lib/use-fiscal-info";
 import { cn } from "@/lib/utils";
 import type { CartItem } from "@/lib/types";
@@ -74,6 +86,8 @@ export function CartPanel({
 
   const router = useRouter();
   const [payment, setPayment] = useState<PayMethod>("card");
+  const [customerOpen, setCustomerOpen] = useState(false);
+  const [customer, setCustomer] = useState<ApiCustomer | null>(null);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
@@ -89,6 +103,8 @@ export function CartPanel({
   const [lastTotalSnapshot, setLastTotalSnapshot] = useState(0);
   const [lastPaymentSnapshot, setLastPaymentSnapshot] =
     useState<PayMethod>("card");
+  const [lastCustomerSnapshot, setLastCustomerSnapshot] =
+    useState<ApiCustomer | null>(null);
 
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -111,6 +127,9 @@ export function CartPanel({
   const dialogItems: CartItem[] = paidOrder ? lastCartSnapshot : items;
   const dialogTotal = paidOrder ? lastTotalSnapshot : total;
   const dialogPayment: PayMethod = paidOrder ? lastPaymentSnapshot : payment;
+  const dialogCustomer: ApiCustomer | null = paidOrder
+    ? lastCustomerSnapshot
+    : customer;
 
   // During SSR and the first client render (before effects run) we force
   // the UI to represent an empty cart to avoid hydration mismatches.
@@ -124,11 +143,43 @@ export function CartPanel({
       setPaidOrder(null);
       setLastCartSnapshot([]);
       setLastTotalSnapshot(0);
+      setLastCustomerSnapshot(null);
     }
   }, [invoiceOpen, items.length]);
 
-  function openInvoice() {
+  // ============================================================
+  // Flow:
+  //   1. "Valider la facture" → open CustomerDialog
+  //   2. Cashier picks / creates / skips the customer
+  //   3. CartPanel then opens the invoice Dialog and snapshots
+  //      the customer (so the receipt keeps showing it after
+  //      the order is paid and the cart is cleared)
+  // ============================================================
+
+  function startSale() {
+    if (isEmpty) return;
+    setConfirmError(null);
+    setPaidOrder(null);
+    setLastCustomerSnapshot(null);
+    setCustomerOpen(true);
+  }
+
+  function onCustomerSelected(selected: ApiCustomer) {
+    setCustomer(selected);
+    setLastCustomerSnapshot(selected);
+    setCustomerOpen(false);
     setInvoiceOpen(true);
+  }
+
+  function onCustomerSkipped() {
+    setCustomer(null);
+    setLastCustomerSnapshot(null);
+    setCustomerOpen(false);
+    setInvoiceOpen(true);
+  }
+
+  function closeCustomerDialog() {
+    setCustomerOpen(false);
   }
 
   function closeInvoice() {
@@ -140,11 +191,13 @@ export function CartPanel({
     if (confirming || items.length === 0) return;
     setConfirming(true);
     setConfirmError(null);
-    // Capture a snapshot of the cart before we clear it so the receipt
-    // and the print view keep showing the sold items.
+    // Capture a snapshot of the cart + customer before we clear
+    // them so the receipt and the print view keep showing the
+    // sold items and the resolved customer.
     setLastCartSnapshot(items);
     setLastTotalSnapshot(total);
     setLastPaymentSnapshot(payment);
+    setLastCustomerSnapshot(customer);
     try {
       // 1. Create the order in "pending" state on the server
       const order = await createOrder({
@@ -152,6 +205,7 @@ export function CartPanel({
           productId: Number(it.drink.id),
           quantity: it.quantity,
         })),
+        ...(customer?.id ? { customerId: customer.id } : {}),
       });
       // 2. Mark the order as paid and create the Payment row
       const paid = await payOrder(order.id, {
@@ -199,7 +253,24 @@ export function CartPanel({
   }
 
   const companyName = fiscal?.companyName ?? branding.companyName;
-  const receiptDate = paidOrder ? new Date(paidOrder.createdAt) : new Date();
+  // The backend exposes `createdAt` on the order. Some shapes
+  // (e.g. older payloads) may ship it as `created_at` instead.
+  // We try both keys and fall back to "now" if the value is
+  // missing or unparseable, which prevents "Invalid Date" from
+  // leaking into the receipt / on-screen invoice.
+  function parseOrderDate(value: unknown): Date {
+    if (typeof value === "string" || typeof value === "number") {
+      const d = new Date(value);
+      if (!Number.isNaN(d.getTime())) return d;
+    }
+    return new Date();
+  }
+  const orderCreatedAt = (
+    paidOrder as unknown as { created_at?: string } | null
+  )?.created_at;
+  const receiptDate = paidOrder
+    ? parseOrderDate(paidOrder.createdAt ?? orderCreatedAt)
+    : new Date();
   const receiptFxRate = paidOrder ? Number(paidOrder.fxRate) : FX_RATE;
   const receiptTotalFc = paidOrder
     ? Number(paidOrder.totalAmount)
@@ -286,6 +357,50 @@ export function CartPanel({
             </div>
 
             <div className="rcp-double" />
+
+            {/* ===== Client ===== */}
+            {dialogCustomer ? (
+              <>
+                <div className="rcp-uppercase rcp-tiny rcp-muted rcp-center">
+                  Client
+                </div>
+                <div className="rcp-line rcp-tiny">
+                  <span>Type:</span>
+                  <span>
+                    {dialogCustomer.type === "company" ? "Société" : "Personne"}
+                  </span>
+                </div>
+                <div className="rcp-line rcp-tiny">
+                  <span>Nom:</span>
+                  <span>{dialogCustomer.name}</span>
+                </div>
+                {dialogCustomer.phone ? (
+                  <div className="rcp-line rcp-tiny">
+                    <span>Tél:</span>
+                    <span>{dialogCustomer.phone}</span>
+                  </div>
+                ) : null}
+                {dialogCustomer.email ? (
+                  <div className="rcp-line rcp-tiny">
+                    <span>Email:</span>
+                    <span>{dialogCustomer.email}</span>
+                  </div>
+                ) : null}
+                {dialogCustomer.taxId ? (
+                  <div className="rcp-line rcp-tiny">
+                    <span>N° Impôt:</span>
+                    <span>{dialogCustomer.taxId}</span>
+                  </div>
+                ) : null}
+                {dialogCustomer.address ? (
+                  <div className="rcp-line rcp-tiny">
+                    <span>Adresse:</span>
+                    <span>{dialogCustomer.address}</span>
+                  </div>
+                ) : null}
+                <div className="rcp-dashed" />
+              </>
+            ) : null}
 
             {/* ===== Articles ===== */}
             {dialogItems.map((item) => (
@@ -385,8 +500,17 @@ export function CartPanel({
       : null;
 
   return (
-    <aside className="flex w-full flex-col lg:w-[24rem] lg:shrink-0">
-      <div className="glass-strong flex h-full flex-col rounded-3xl p-5">
+    // The cart panel is rendered in two contexts:
+    //   • Desktop: inline column on the right of the menu.
+    //   • Mobile : inside a full-screen Dialog sheet (see pos-app).
+    // In both cases the parent has a fixed height, so we use
+    // `h-full overflow-hidden` here and `min-h-0` on the inner
+    // flex column to make the items list (which has
+    // `flex-1 overflow-y-auto`) actually scroll when the cart
+    // grows. The Totals / Payment / Validate sections stay
+    // pinned to the bottom.
+    <aside className="flex h-full min-h-0 w-full flex-col overflow-hidden lg:w-[24rem] lg:shrink-0">
+      <div className="glass-strong flex h-full min-h-0 flex-col overflow-hidden rounded-none p-4 sm:rounded-3xl sm:p-5">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -523,14 +647,23 @@ export function CartPanel({
         <button
           type="button"
           disabled={isEmpty}
-          onClick={openInvoice}
+          onClick={startSale}
           className={cn(
             "brand-bg mt-4 flex h-12 items-center justify-center rounded-2xl text-sm font-bold transition-opacity disabled:opacity-40",
           )}
         >
+          <Lock className="mr-2 h-4 w-4" />
           Valider la facture · ${(isEmpty ? 0 : total).toFixed(2)}
         </button>
       </div>
+
+      {/* Customer dialog — opens first when validating the sale */}
+      <CustomerDialog
+        open={customerOpen}
+        onOpenChange={setCustomerOpen}
+        onConfirm={onCustomerSelected}
+        onSkip={onCustomerSkipped}
+      />
 
       {/* Invoice preview */}
       <Dialog open={invoiceOpen} onOpenChange={setInvoiceOpen}>
@@ -609,8 +742,69 @@ export function CartPanel({
               </div>
               <div className="flex justify-between text-[0.7rem] uppercase tracking-[0.15em] text-zinc-500">
                 <span>Type</span>
-                <span>Personne Physique</span>
+                <span>
+                  {dialogCustomer
+                    ? dialogCustomer.type === "company"
+                      ? "Société"
+                      : "Personne"
+                    : "Personne Physique"}
+                </span>
               </div>
+            </div>
+
+            {/* Customer block — shown on the on-screen invoice */}
+            <div className="rounded-3xl bg-white p-3">
+              <div className="mb-1.5 flex items-center justify-between text-[0.7rem] uppercase tracking-[0.15em] text-zinc-500">
+                <span>Client</span>
+                {dialogCustomer ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[0.6rem] font-semibold text-emerald-700">
+                    {dialogCustomer.type === "company" ? (
+                      <Building2 className="h-2.5 w-2.5" />
+                    ) : (
+                      <UserIcon className="h-2.5 w-2.5" />
+                    )}
+                    {dialogCustomer.type === "company" ? "Société" : "Personne"}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[0.6rem] font-semibold text-zinc-600">
+                    Anonyme
+                  </span>
+                )}
+              </div>
+              {dialogCustomer ? (
+                <div className="space-y-1 text-[0.72rem] text-zinc-700">
+                  <p className="truncate text-sm font-semibold text-zinc-900">
+                    {dialogCustomer.name}
+                  </p>
+                  {dialogCustomer.phone ? (
+                    <p className="flex items-center gap-1 truncate text-zinc-600">
+                      <Phone className="h-3 w-3" />
+                      {dialogCustomer.phone}
+                    </p>
+                  ) : null}
+                  {dialogCustomer.email ? (
+                    <p className="flex items-center gap-1 truncate text-zinc-600">
+                      <Mail className="h-3 w-3" />
+                      {dialogCustomer.email}
+                    </p>
+                  ) : null}
+                  {dialogCustomer.taxId ? (
+                    <p className="truncate text-zinc-600">
+                      N° Impôt: {dialogCustomer.taxId}
+                    </p>
+                  ) : null}
+                  {dialogCustomer.address ? (
+                    <p className="flex items-center gap-1 truncate text-zinc-600">
+                      <MapPin className="h-3 w-3" />
+                      {dialogCustomer.address}
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="text-[0.72rem] italic text-zinc-500">
+                  Vente anonyme — aucun client associé.
+                </p>
+              )}
             </div>
 
             <div className="rounded-3xl bg-white p-3">
