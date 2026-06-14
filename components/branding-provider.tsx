@@ -9,7 +9,13 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { fetchBranding, type ApiBranding } from "@/lib/api";
+import {
+  ApiError,
+  fetchBranding,
+  resetBranding as apiResetBranding,
+  updateBranding,
+  type ApiBranding,
+} from "@/lib/api";
 import type { Branding } from "@/lib/types";
 
 const defaultBranding: Branding = {
@@ -21,9 +27,37 @@ const defaultBranding: Branding = {
   secondaryColor: "#fdebe1",
 };
 
+/**
+ * Full editable form for the branding / company-info panel.
+ * Mirrors the columns of the server `Branding` model so the
+ * settings dialog can persist every field (including the fiscal
+ * info shown on the printed receipt).
+ */
+export interface BrandingForm extends Branding {
+  idNat: string;
+  rccm: string;
+  taxNumber: string;
+  address: string;
+  phone: string;
+  email: string;
+}
+
 interface BrandingContextValue {
-  branding: Branding;
-  setBranding: (b: Partial<Branding>) => void;
+  branding: BrandingForm;
+  setBranding: (b: Partial<BrandingForm>) => void;
+  /** Push the current local state to the server and refresh the
+   *  cache on success. Resolves with the saved record. */
+  saveBranding: () => Promise<BrandingForm>;
+  /** Reset the local state and the server row to the factory defaults. */
+  resetBranding: () => Promise<BrandingForm>;
+  /** True while the initial GET /branding is in flight. */
+  loading: boolean;
+  /** True while a save / reset is in flight. */
+  saving: boolean;
+  /** Last error from the API (save / reset), or null. */
+  error: string | null;
+  /** Re-fetch from the server and replace the local state. */
+  refresh: () => Promise<void>;
 }
 
 const BrandingContext = createContext<BrandingContextValue | null>(null);
@@ -45,7 +79,7 @@ function readableForeground(hex: string): string {
   return luminance > 0.6 ? "#1a1a1a" : "#ffffff";
 }
 
-function apiBrandingToLocal(api: ApiBranding): Branding {
+function apiBrandingToLocal(api: ApiBranding): BrandingForm {
   return {
     companyName: api.companyName,
     tagline: api.tagline,
@@ -53,14 +87,48 @@ function apiBrandingToLocal(api: ApiBranding): Branding {
     logoImage: api.logoImage ?? "",
     primaryColor: api.primaryColor,
     secondaryColor: api.secondaryColor,
+    idNat: api.idNat,
+    rccm: api.rccm,
+    taxNumber: api.taxNumber,
+    address: api.address,
+    phone: api.phone,
+    email: api.email,
+  };
+}
+
+function localToApiPayload(b: BrandingForm): Partial<ApiBranding> {
+  return {
+    companyName: b.companyName,
+    tagline: b.tagline,
+    logoText: b.logoText,
+    logoImage: b.logoImage || null,
+    primaryColor: b.primaryColor,
+    secondaryColor: b.secondaryColor,
+    idNat: b.idNat,
+    rccm: b.rccm,
+    taxNumber: b.taxNumber,
+    address: b.address,
+    phone: b.phone,
+    email: b.email,
   };
 }
 
 export function BrandingProvider({ children }: { children: ReactNode }) {
   // Start with the bundled default so SSR / first paint is stable.
-  const [branding, setBrandingState] = useState<Branding>(defaultBranding);
+  const [branding, setBrandingState] = useState<BrandingForm>({
+    ...defaultBranding,
+    idNat: "",
+    rccm: "",
+    taxNumber: "",
+    address: "",
+    phone: "",
+    email: "",
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const setBranding = useCallback((b: Partial<Branding>) => {
+  const setBranding = useCallback((b: Partial<BrandingForm>) => {
     setBrandingState((prev) => ({ ...prev, ...b }));
   }, []);
 
@@ -68,20 +136,73 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
   // the user's local overrides (if any) on top. This way the
   // company name, address, ID Nat, etc. shown in invoices are
   // always the ones stored in the database, not hard-coded mocks.
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const api = await fetchBranding();
+      setBrandingState(apiBrandingToLocal(api));
+      setError(null);
+    } catch (err) {
+      // Silent fallback to the bundled default if the API is
+      // unreachable (e.g. during a network blip at boot).
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Impossible de charger le branding",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    let cancelled = false;
-    fetchBranding()
-      .then((api) => {
-        if (cancelled) return;
-        setBrandingState(apiBrandingToLocal(api));
-      })
-      .catch(() => {
-        // Silent fallback to the bundled default if the API is
-        // unreachable (e.g. during a network blip at boot).
-      });
-    return () => {
-      cancelled = true;
-    };
+    refresh();
+  }, [refresh]);
+
+  const saveBranding = useCallback(async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      const saved = await updateBranding(localToApiPayload(branding));
+      const next = apiBrandingToLocal(saved);
+      setBrandingState(next);
+      return next;
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Impossible d'enregistrer le branding";
+      setError(message);
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  }, [branding]);
+
+  const resetBranding = useCallback(async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      const saved = await apiResetBranding();
+      const next = apiBrandingToLocal(saved);
+      setBrandingState(next);
+      return next;
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Impossible de réinitialiser le branding";
+      setError(message);
+      throw err;
+    } finally {
+      setSaving(false);
+    }
   }, []);
 
   // Persist the live value so subsequent mount can use it.
@@ -97,8 +218,26 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
   }, [branding]);
 
   const value = useMemo<BrandingContextValue>(
-    () => ({ branding, setBranding }),
-    [branding, setBranding],
+    () => ({
+      branding,
+      setBranding,
+      saveBranding,
+      resetBranding,
+      loading,
+      saving,
+      error,
+      refresh,
+    }),
+    [
+      branding,
+      setBranding,
+      saveBranding,
+      resetBranding,
+      loading,
+      saving,
+      error,
+      refresh,
+    ],
   );
 
   return (
