@@ -159,6 +159,118 @@ export async function fetchCurrentCashier(): Promise<Cashier> {
   });
 }
 
+// ---------- Cashiers (Users) ----------
+
+export interface FetchCashiersParams {
+  q?: string;
+  role?: string;
+  includeInactive?: boolean;
+}
+
+export async function fetchCashiers(
+  params: FetchCashiersParams = {},
+): Promise<Cashier[]> {
+  const search = new URLSearchParams();
+  if (params.q) search.set("q", params.q);
+  if (params.role) search.set("role", params.role);
+  if (params.includeInactive) search.set("includeInactive", "true");
+  const qs = search.toString();
+  return apiRequest<Cashier[]>({
+    method: "GET",
+    path: `${API_BASE_URL}/cashiers${qs ? `?${qs}` : ""}`,
+  });
+}
+
+export interface CashierPayload {
+  code: string;
+  fullName: string;
+  email?: string | null;
+  phone?: string | null;
+  role?: "cashier" | "manager" | "admin";
+  avatarUrl?: string | null;
+  password?: string;
+  isActive?: boolean;
+}
+
+export async function createCashier(
+  payload: CashierPayload,
+): Promise<Cashier> {
+  return apiRequest<Cashier>({
+    method: "POST",
+    path: `${API_BASE_URL}/cashiers`,
+    body: payload,
+  });
+}
+
+export async function updateCashier(
+  id: number,
+  payload: Partial<CashierPayload>,
+): Promise<Cashier> {
+  return apiRequest<Cashier>({
+    method: "PUT",
+    path: `${API_BASE_URL}/cashiers/${id}`,
+    body: payload,
+  });
+}
+
+export async function deleteCashier(id: number): Promise<void> {
+  await apiRequest<null>({
+    method: "DELETE",
+    path: `${API_BASE_URL}/cashiers/${id}`,
+  });
+}
+
+// ---------- Customers ----------
+
+/** A customer as returned by the backend. */
+export interface ApiCustomer {
+  id: number;
+  type: "person" | "company";
+  name: string;
+  phone: string | null;
+  email: string | null;
+  taxId: string | null;
+  address: string | null;
+  createdAt?: string;
+}
+
+export interface FetchCustomersParams {
+  q?: string;
+  type?: "person" | "company";
+}
+
+export async function fetchCustomers(
+  params: FetchCustomersParams = {},
+): Promise<ApiCustomer[]> {
+  const search = new URLSearchParams();
+  if (params.q) search.set("q", params.q);
+  if (params.type) search.set("type", params.type);
+  const qs = search.toString();
+  return apiRequest<ApiCustomer[]>({
+    method: "GET",
+    path: `${API_BASE_URL}/customers${qs ? `?${qs}` : ""}`,
+  });
+}
+
+export interface CustomerPayload {
+  type?: "person" | "company";
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+  taxId?: string | null;
+  address?: string | null;
+}
+
+export async function createCustomer(
+  payload: CustomerPayload,
+): Promise<ApiCustomer> {
+  return apiRequest<ApiCustomer>({
+    method: "POST",
+    path: `${API_BASE_URL}/customers`,
+    body: payload,
+  });
+}
+
 // ---------- Catalog (categories + products) ----------
 
 /** A category as returned by the backend. */
@@ -219,6 +331,39 @@ export async function fetchCategories(): Promise<ApiCategory[]> {
   });
 }
 
+export interface CategoryPayload {
+  label: string;
+  slug: string;
+}
+
+export async function createCategory(
+  payload: CategoryPayload,
+): Promise<ApiCategory> {
+  return apiRequest<ApiCategory>({
+    method: "POST",
+    path: `${API_BASE_URL}/categories`,
+    body: payload,
+  });
+}
+
+export async function updateCategory(
+  id: number,
+  payload: Partial<CategoryPayload>,
+): Promise<ApiCategory> {
+  return apiRequest<ApiCategory>({
+    method: "PUT",
+    path: `${API_BASE_URL}/categories/${id}`,
+    body: payload,
+  });
+}
+
+export async function deleteCategory(id: number): Promise<void> {
+  await apiRequest<null>({
+    method: "DELETE",
+    path: `${API_BASE_URL}/categories/${id}`,
+  });
+}
+
 export async function fetchBranding(): Promise<ApiBranding> {
   return apiRequest<ApiBranding>({
     method: "GET",
@@ -233,6 +378,17 @@ export async function updateBranding(
     method: "PUT",
     path: `${API_BASE_URL}/branding`,
     body: payload,
+  });
+}
+
+/**
+ * Reset the company branding to the factory defaults. The server
+ * restores the same default values that the seeder ships with.
+ */
+export async function resetBranding(): Promise<ApiBranding> {
+  return apiRequest<ApiBranding>({
+    method: "POST",
+    path: `${API_BASE_URL}/branding/reset`,
   });
 }
 
