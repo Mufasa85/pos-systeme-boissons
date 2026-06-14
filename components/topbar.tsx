@@ -7,12 +7,7 @@ import { useMobileSidebar } from "@/components/mobile-sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
-const ROLE_LABELS: Record<string, string> = {
-  cashier: "Caissier",
-  manager: "Manager",
-  admin: "Administrateur",
-};
+import { hasCapability, ROLE_LABELS } from "@/lib/permissions";
 
 export function Topbar({
   query,
@@ -37,6 +32,11 @@ export function Topbar({
     : "—";
 
   const roleLabel = cashier ? (ROLE_LABELS[cashier.role] ?? cashier.role) : "";
+
+  // The settings button opens the Branding dialog, which is
+  // admin-only. Render it conditionally so non-admins don't
+  // see a button that would do nothing for them.
+  const canManageBranding = hasCapability(cashier?.role, "manageBranding");
 
   return (
     <header className="glass flex items-center gap-3 rounded-3xl p-3 sm:gap-4 sm:p-4">
@@ -87,15 +87,17 @@ export function Topbar({
         <Bell className="h-4 w-4" />
       </Button>
 
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onOpenSettings}
-        className="h-11 w-11 rounded-2xl bg-muted/60 lg:hidden"
-        aria-label="Paramètres de branding"
-      >
-        <Settings className="h-4 w-4" />
-      </Button>
+      {canManageBranding ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onOpenSettings}
+          className="h-11 w-11 rounded-2xl bg-muted/60 lg:hidden"
+          aria-label="Paramètres de branding"
+        >
+          <Settings className="h-4 w-4" />
+        </Button>
+      ) : null}
 
       <div className="flex items-center gap-3 pl-1 pr-1">
         <Avatar className="h-10 w-10 border border-border">
