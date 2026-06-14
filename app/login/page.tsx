@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   Eye,
   EyeOff,
@@ -27,11 +27,82 @@ import { cn } from "@/lib/utils";
 //
 // On mobile the left panel collapses (the form is shown full
 // width with the brand mark above the form).
+//
+// Security notes
+// --------------
+// • The form is `method="post"` with `e.preventDefault()` so the
+//   code + password NEVER land in the URL as query params,
+//   even if React hydration is delayed.
+// • The "next" redirect is stored in `sessionStorage` instead
+//   of a `?next=` query param. That avoids leaking the user's
+//   intended destination into the URL bar / history /
+//   referrer / server logs.
+// • `safeRedirectPath()` rejects anything that isn't a
+//   same-origin relative path, closing the open-redirect hole.
 // ============================================================
+
+const NEXT_PATH_STORAGE_KEY = "pos-brikin:auth-next-path";
+
+/**
+ * Reads the "where to go after login" path from sessionStorage.
+ * Returns "/" if nothing is stored or the stored value isn't
+ * a safe same-origin path.
+ */
+function readNextPath(): string {
+  if (typeof window === "undefined") return "/";
+  try {
+    const raw = window.sessionStorage.getItem(NEXT_PATH_STORAGE_KEY);
+    if (!raw) return "/";
+    return safeRedirectPath(raw);
+  } catch {
+    return "/";
+  }
+}
+
+/** Writes the post-login destination to sessionStorage. */
+function writeNextPath(path: string) {
+  if (typeof window === "undefined") return;
+  try {
+    const safe = safeRedirectPath(path);
+    if (safe === "/") {
+      window.sessionStorage.removeItem(NEXT_PATH_STORAGE_KEY);
+    } else {
+      window.sessionStorage.setItem(NEXT_PATH_STORAGE_KEY, safe);
+    }
+  } catch {
+    // sessionStorage may be disabled (private mode, etc.) — fail
+    // silently, the user will just land on the default page.
+  }
+}
+
+function clearNextPath() {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.removeItem(NEXT_PATH_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * Returns `path` if it's a safe same-origin relative URL,
+ * otherwise returns the default "/". Rejects absolute URLs
+ * (`http://…`, `//evil.com/…`, `javascript:…`) and any string
+ * that would resolve outside the app.
+ */
+function safeRedirectPath(path: string | null | undefined): string {
+  if (!path || typeof path !== "string") return "/";
+  // Trim whitespace and forbid protocol-relative URLs.
+  const trimmed = path.trim();
+  if (!trimmed.startsWith("/")) return "/";
+  // `//foo` would be protocol-relative (e.g. //evil.com) and
+  // `/\foo` is a normal in-app path. Reject the double-slash.
+  if (trimmed.startsWith("//")) return "/";
+  return trimmed;
+}
 
 export default function LoginPage() {
   const router = useRouter();
-  const search = useSearchParams();
   const { status, login } = useAuth();
   const ready = useAuthReady();
 
@@ -41,17 +112,19 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // If the user is already authenticated, send them to the POS.
-  // (useSearchParams is used so that a "next" query param wins,
-  // e.g. /login?next=/stock — useful for future deep links.)
+  // If the user is already authenticated, send them to their
+  // intended destination (or the POS as a default).
   useEffect(() => {
     if (ready && status === "authenticated") {
-      const next = search.get("next") || "/";
-      router.replace(next);
+      router.replace(readNextPath());
     }
-  }, [ready, status, router, search]);
+  }, [ready, status, router]);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
+    // Defense in depth: even before React reads the form, the
+    // browser won't append code/password to the URL because
+    // method="post" + this preventDefault() short-circuits any
+    // native submission path.
     e.preventDefault();
     if (submitting) return;
     setError(null);
@@ -64,8 +137,15 @@ export default function LoginPage() {
 
     try {
       setSubmitting(true);
+
       await login(trimmedCode, password);
-      const next = search.get("next") || "/";
+
+      // Wipe the code/password from the DOM state and route the
+      // user to the page they originally wanted.
+      setCode("");
+      setPassword("");
+      const next = readNextPath();
+      clearNextPath();
       router.replace(next);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -203,6 +283,15 @@ export default function LoginPage() {
               <form
                 onSubmit={onSubmit}
                 className="relative mt-7 space-y-5"
+                // Force a real POST so the code + password can
+                // NEVER be appended to the URL as query params
+                // (the native form action with no method would
+                // default to GET). Combined with e.preventDefault
+                // above, this guarantees credentials travel in
+                // the request body, not the address bar.
+                method="post"
+                action="javascript:void(0)"
+                autoComplete="on"
                 noValidate
               >
                 <div className="space-y-2">
@@ -225,6 +314,7 @@ export default function LoginPage() {
                       onChange={(e) => setCode(e.target.value.toUpperCase())}
                       placeholder="Ex. AF666"
                       disabled={submitting}
+                      spellCheck={false}
                       className="h-12 rounded-2xl border-transparent bg-muted/60 pl-11 text-sm tracking-wider focus-visible:ring-2"
                       style={{ outlineColor: "var(--brand)" }}
                     />
@@ -325,4 +415,12 @@ export default function LoginPage() {
       </div>
     </div>
   );
+}
+
+/**
+ * Lets the rest of the app (AuthGuard, etc.) record the
+ * user's intended destination without touching the URL.
+ */
+export function rememberNextPath(path: string) {
+  writeNextPath(path);
 }
