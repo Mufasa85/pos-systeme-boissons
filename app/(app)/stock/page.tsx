@@ -432,29 +432,33 @@ export default function StockPage() {
                           stock
                         </p>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
                         <Button
                           variant="outline"
-                          size="sm"
+                          size="icon-sm"
                           onClick={() => handleEdit(d)}
-                          className="gap-2"
+                          aria-label="Modifier le produit"
+                          title="Modifier le produit"
+                          className="sm:size-auto sm:gap-2 sm:px-2.5"
                         >
                           <Edit3 className="h-3.5 w-3.5" />
-                          Modifier
+                          <span className="hidden sm:inline">Modifier</span>
                         </Button>
                         <Button
                           variant="destructive"
-                          size="sm"
+                          size="icon-sm"
                           disabled={deletingId === d.id}
                           onClick={() => handleDelete(d.id)}
-                          className="gap-2"
+                          aria-label="Supprimer le produit"
+                          title="Supprimer le produit"
+                          className="sm:size-auto sm:gap-2 sm:px-2.5"
                         >
                           {deletingId === d.id ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           ) : (
                             <Trash2 className="h-3.5 w-3.5" />
                           )}
-                          Supprimer
+                          <span className="hidden sm:inline">Supprimer</span>
                         </Button>
                       </div>
                     </div>
@@ -496,8 +500,8 @@ export default function StockPage() {
         open={dialogOpen}
         onOpenChange={(open) => (open ? setDialogOpen(true) : closeDialog())}
       >
-        <DialogContent className="max-w-3xl p-6">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[100dvh] w-screen max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 p-0 sm:max-h-[calc(100vh-1rem)] sm:max-w-3xl sm:rounded-3xl sm:border sm:shadow-lg">
+          <DialogHeader className="shrink-0 border-b border-border px-5 py-4">
             <DialogTitle>
               {editingId !== null ? "Modifier le produit" : "Nouveau produit"}
             </DialogTitle>
@@ -508,7 +512,10 @@ export default function StockPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
+          <form
+            className="grid min-h-0 flex-1 gap-4 overflow-y-auto px-5 py-4 md:grid-cols-2"
+            onSubmit={handleSubmit}
+          >
             {/* Image upload + preview (spans both columns) */}
             <div className="md:col-span-2 space-y-2">
               <p className="text-sm font-medium text-muted-foreground">
@@ -751,12 +758,13 @@ export default function StockPage() {
             </div>
           </form>
 
-          <DialogFooter>
+          <DialogFooter className="shrink-0 gap-2 border-t border-border bg-muted/40 px-5 py-3 sm:justify-end">
             <Button
               type="button"
               variant="outline"
               onClick={closeDialog}
               disabled={saving}
+              className="flex-1 sm:flex-none"
             >
               Annuler
             </Button>
