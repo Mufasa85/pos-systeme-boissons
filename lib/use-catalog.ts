@@ -95,8 +95,19 @@ function ensureLoaded() {
 // ---------- Mappers (API → local types) ----------
 
 function mapCategories(api: ApiCategory[]): Category[] {
+  // The seeders historically created a real `slug: "all"` row
+  // in the `categories` table. The front-end also uses
+  // `ALL_CATEGORY.id === "all"` as a virtual "show all" marker,
+  // so we must dedupe by id to avoid rendering two <option>
+  // (or <CategoryTabs.Tab>) elements with the same key.
+  const seen = new Set<Category["id"]>([ALL_CATEGORY.id]);
   const real = api
     .map((c) => ({ id: c.slug as Category["id"], label: c.label }))
+    .filter((c) => {
+      if (seen.has(c.id)) return false;
+      seen.add(c.id);
+      return true;
+    })
     .sort((a, b) => a.label.localeCompare(b.label));
   return [ALL_CATEGORY, ...real];
 }
