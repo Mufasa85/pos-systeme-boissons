@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
@@ -47,7 +48,11 @@ export default function RootLayout({
     >
       <body className="font-sans antialiased">
         <AuthProvider>{children}</AuthProvider>
-        {process.env.NODE_ENV === "production" && <Analytics />}
+        {process.env.NODE_ENV === "production" && (
+          <Suspense fallback={null}>
+            <Analytics />
+          </Suspense>
+        )}
       </body>
     </html>
   );
