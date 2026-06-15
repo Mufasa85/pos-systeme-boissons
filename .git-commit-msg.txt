@@ -1,0 +1,13 @@
+fix: isolate Vercel Analytics in a dedicated client component
+
+Move <Analytics /> from the root layout into a new
+`components/analytics-mount.tsx` client component that wraps it in its
+own <Suspense> boundary. This keeps the useSearchParams() call inside
+the analytics package behind an explicit, locally-owned Suspense
+boundary, which is what Next.js 16's prerender pass requires to render
+the /login page.
+
+The previous attempt (wrapping <Analytics /> directly in the layout)
+was not picked up reliably by the build. Isolating the wrapper in a
+"use client" component guarantees the boundary is preserved when
+Next.js splits the client graph and statically renders each segment.

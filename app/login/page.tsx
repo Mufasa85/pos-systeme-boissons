@@ -402,14 +402,6 @@ export default function LoginPage() {
                 </p>
               </form>
             </div>
-
-            <p className="mt-6 text-center text-xs text-muted-foreground">
-              API:{" "}
-              <code className="rounded bg-muted px-1.5 py-0.5 text-[11px]">
-                {process.env.NEXT_PUBLIC_API_BASE_URL ||
-                  "http://localhost:4000/api"}
-              </code>
-            </p>
           </div>
         </main>
       </div>
