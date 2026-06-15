@@ -175,8 +175,8 @@ export const metadata: Metadata = {
     ttl: 3600,
     images: [
       {
-        url: absoluteUrl("/opengraph-image"),
-        secureUrl: absoluteUrl("/opengraph-image"),
+        url: absoluteUrl("/logo_ass_N-clair.png"),
+        secureUrl: absoluteUrl("/logo_ass_N-clair.png"),
         alt: `${SITE_NAME} — Point de vente moderne pour boissons`,
         width: 1200,
         height: 630,
@@ -224,21 +224,21 @@ export const metadata: Metadata = {
   // -------------------------------------------------------------------- //
   // AppLinks (deep-linking for iOS / Android)                             //
   // -------------------------------------------------------------------- //
-  appLinks: {
-    ios: {
-      url: absoluteUrl("/"),
-      app_store_id: process.env.NEXT_PUBLIC_IOS_APP_ID,
-      app_name: SITE_SHORT_NAME,
-    },
-    android: {
-      url: absoluteUrl("/"),
-      package: process.env.NEXT_PUBLIC_ANDROID_PACKAGE,
-    },
-    web: {
-      url: absoluteUrl("/"),
-      should_fallback: true,
-    },
-  },
+  // appLinks: {
+  //   ios: {
+  //     url: absoluteUrl("/"),
+  //     app_store_id: process.env.NEXT_PUBLIC_IOS_APP_ID,
+  //     app_name: SITE_SHORT_NAME,
+  //   },
+  //   android: {
+  //     url: absoluteUrl("/"),
+  //     package: process.env.NEXT_PUBLIC_ANDROID_PACKAGE,
+  //   },
+  //   web: {
+  //     url: absoluteUrl("/"),
+  //     should_fallback: true,
+  //   },
+  // },
   // -------------------------------------------------------------------- //
   // Verification (search engine consoles)                                 //
   // -------------------------------------------------------------------- //
