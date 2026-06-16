@@ -25,7 +25,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -50,6 +49,11 @@ import { cn } from "@/lib/utils";
 // `null` for anonymous). The parent uses that value to attach
 // the customer to the order and to print their info on the
 // final receipt.
+//
+// UX note: on mobile, the Radix X close-button is hidden so we
+// have a single, unambiguous way out (the « Annuler » button in
+// the footer). On ≥sm, the « Annuler » button is right-aligned
+// and clearly visible.
 // ============================================================
 
 type Mode = "choose" | "select" | "create";
@@ -206,15 +210,24 @@ export function CustomerDialog({
       open={open}
       onOpenChange={(o) => (o ? onOpenChange(true) : close())}
     >
-      <DialogContent className="flex max-h-[100dvh] w-screen max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 p-0 sm:max-h-[calc(100vh-1rem)] sm:max-w-xl sm:rounded-2xl sm:border sm:shadow-lg">
-        <DialogHeader className="shrink-0 border-b border-border px-5 py-4">
-          <DialogTitle className="flex items-center gap-2">
-            <UserIcon className="h-4 w-4" />
+      {/* We hide the Radix X close-button (`showCloseButton={false}`)
+          so the user has a single, unambiguous way to cancel: the
+          « Annuler » button in the footer. That avoids the
+          "two buttons that do the same thing" confusion on mobile. */}
+      <DialogContent
+        showCloseButton={false}
+        className="flex max-h-[100dvh] w-screen max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 p-0 sm:max-h-[calc(100vh-1rem)] sm:max-w-xl sm:rounded-2xl sm:border sm:shadow-lg"
+      >
+        <DialogHeader className="shrink-0 border-b border-border bg-background/80 px-5 py-4 backdrop-blur">
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <span className="brand-soft flex h-8 w-8 items-center justify-center rounded-xl">
+              <UserIcon className="brand-text h-4 w-4" />
+            </span>
             Informations client
           </DialogTitle>
-          <DialogDescription>
-            Sélectionne un client existant, crée-en un nouveau, ou continue sans
-            client (vente anonyme).
+          <DialogDescription className="text-xs">
+            Sélectionne un client, crée-en un nouveau, ou continue sans client
+            (vente anonyme).
           </DialogDescription>
         </DialogHeader>
 
@@ -248,22 +261,28 @@ export function CustomerDialog({
           )}
         </div>
 
-        <DialogFooter className="border-t border-border bg-muted/40 px-5 py-3">
+        {/* Footer: single « Annuler » / « Retour » action — the
+            only way out of the dialog (since the Radix X is hidden).
+            On mobile it spans the full width; on desktop it's
+            right-aligned. */}
+        <div className="shrink-0 border-t border-border bg-muted/40 px-5 py-3">
           <Button
             type="button"
             variant="outline"
             onClick={mode === "choose" ? close : () => setMode("choose")}
             disabled={saving}
+            className="h-11 w-full rounded-2xl text-sm font-semibold sm:h-10 sm:w-auto sm:min-w-40"
           >
             {mode === "choose" ? (
               <>
-                <X className="mr-1.5 h-4 w-4" /> Annuler
+                <X className="mr-1.5 h-4 w-4" />
+                Annuler
               </>
             ) : (
-              "Retour"
+              "← Retour"
             )}
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -287,7 +306,7 @@ function ChooseMode({
       <button
         type="button"
         onClick={onSelectExisting}
-        className="group flex items-center gap-3 rounded-2xl border border-border bg-muted/40 p-4 text-left transition-colors hover:bg-muted"
+        className="group flex items-center gap-3 rounded-2xl border border-border bg-muted/40 p-4 text-left transition-colors hover:bg-muted active:scale-[0.99]"
       >
         <div className="brand-soft flex h-10 w-10 items-center justify-center rounded-2xl">
           <Search className="h-4 w-4" />
@@ -302,7 +321,7 @@ function ChooseMode({
       <button
         type="button"
         onClick={onCreateNew}
-        className="group flex items-center gap-3 rounded-2xl border border-border bg-muted/40 p-4 text-left transition-colors hover:bg-muted"
+        className="group flex items-center gap-3 rounded-2xl border border-border bg-muted/40 p-4 text-left transition-colors hover:bg-muted active:scale-[0.99]"
       >
         <div className="brand-soft flex h-10 w-10 items-center justify-center rounded-2xl">
           <UserPlus className="h-4 w-4" />
@@ -317,10 +336,10 @@ function ChooseMode({
       <button
         type="button"
         onClick={onSkip}
-        className="group flex items-center gap-3 rounded-2xl border border-dashed border-border bg-background p-4 text-left transition-colors hover:bg-muted/40"
+        className="group flex items-center gap-3 rounded-2xl border border-dashed border-border bg-background p-4 text-left transition-colors hover:bg-muted/40 active:scale-[0.99]"
       >
         <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
-          <X className="h-4 w-4" />
+          <UserIcon className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold">Vente anonyme</p>
@@ -354,7 +373,7 @@ function SelectMode({
 }) {
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2 rounded-2xl bg-muted/40 px-3 py-2">
+      <div className="flex items-center gap-2 rounded-2xl bg-muted/40 px-3 py-2.5">
         <Search className="h-4 w-4 text-muted-foreground" />
         <input
           value={search}
@@ -399,7 +418,7 @@ function SelectMode({
               key={c.id}
               type="button"
               onClick={() => onPick(c)}
-              className="flex w-full items-center gap-3 rounded-2xl bg-muted/40 p-3 text-left transition-colors hover:bg-muted"
+              className="flex w-full items-center gap-3 rounded-2xl bg-muted/40 p-3 text-left transition-colors hover:bg-muted active:scale-[0.99]"
             >
               <div className="brand-bg flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xs font-bold">
                 {c.type === "company" ? (
@@ -450,6 +469,7 @@ function CreateMode({
 }) {
   return (
     <form className="grid gap-3" onSubmit={onSubmit}>
+      {/* Type toggle: full width on mobile, segmented look */}
       <div className="flex items-center gap-1 rounded-2xl bg-muted/40 p-1">
         {(
           [
@@ -469,7 +489,7 @@ function CreateMode({
               type="button"
               onClick={() => onChange({ ...form, type: opt.value })}
               className={cn(
-                "flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-colors",
+                "flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-semibold transition-colors",
                 active
                   ? "bg-background text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground",
@@ -482,6 +502,7 @@ function CreateMode({
         })}
       </div>
 
+      {/* Fields: single column on mobile, two columns on sm+ */}
       <div className="grid gap-3 sm:grid-cols-2">
         <Field
           id="customer-name"
@@ -498,12 +519,15 @@ function CreateMode({
           value={form.phone ?? ""}
           onChange={(v) => onChange({ ...form, phone: v })}
           placeholder="+243 …"
+          type="tel"
+          inputMode="tel"
         />
         <Field
           id="customer-email"
           label="Email"
           icon={Mail}
           type="email"
+          inputMode="email"
           value={form.email ?? ""}
           onChange={(v) => onChange({ ...form, email: v })}
           placeholder="client@exemple.com"
@@ -570,6 +594,7 @@ function Field({
   onChange,
   placeholder,
   type = "text",
+  inputMode,
   icon: Icon,
   required,
 }: {
@@ -579,6 +604,7 @@ function Field({
   onChange: (value: string) => void;
   placeholder?: string;
   type?: string;
+  inputMode?: "text" | "tel" | "email" | "numeric" | "search" | "url";
   icon?: React.ComponentType<{ className?: string }>;
   required?: boolean;
 }) {
@@ -601,8 +627,10 @@ function Field({
           placeholder={placeholder}
           required={required}
           type={type}
+          inputMode={inputMode}
           className={cn(
-            "w-full rounded-2xl border border-border bg-background py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20",
+            // h-12 = 48px tap target on mobile, h-11 on larger screens.
+            "h-12 w-full rounded-2xl border border-border bg-background py-2.5 text-sm outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20 sm:h-11",
             Icon ? "pl-9 pr-3" : "px-3",
           )}
         />

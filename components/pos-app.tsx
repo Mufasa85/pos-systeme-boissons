@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShoppingCart, X } from "lucide-react";
+import { ShoppingCart } from "lucide-react";
 import { AnalyticsBar } from "@/components/analytics-bar";
 import { BrandingDialog } from "@/components/branding-dialog";
 import { CartPanel } from "@/components/cart-panel";
@@ -214,7 +214,10 @@ export function PosApp() {
         </span>
       </button>
 
-      {/* Mobile cart sheet — opens on top of everything */}
+      {/* Mobile cart sheet — opens on top of everything.
+          The close (X) button is now rendered inside the CartPanel
+          header (left side) — not absolutely positioned — so it
+          never overlaps the "Vider" button on tiny screens. */}
       <Dialog open={cartSheetOpen} onOpenChange={setCartSheetOpen}>
         <DialogContent
           showCloseButton={false}
@@ -223,19 +226,12 @@ export function PosApp() {
           <DialogHeader className="sr-only">
             <DialogTitle>Panier</DialogTitle>
           </DialogHeader>
-          <button
-            type="button"
-            onClick={() => setCartSheetOpen(false)}
-            aria-label="Fermer le panier"
-            className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-2xl bg-muted/60 text-foreground shadow-sm transition-colors hover:bg-muted"
-          >
-            <X className="h-5 w-5" />
-          </button>
           <CartPanel
             items={cart}
             onQty={changeQty}
             onRemove={removeItem}
             onClear={() => setCart([])}
+            onClose={() => setCartSheetOpen(false)}
           />
         </DialogContent>
       </Dialog>

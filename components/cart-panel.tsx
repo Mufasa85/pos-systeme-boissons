@@ -20,6 +20,7 @@ import {
   Smartphone,
   Trash2,
   User as UserIcon,
+  X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -74,11 +75,19 @@ export function CartPanel({
   onQty,
   onRemove,
   onClear,
+  /**
+   * When provided, a close (X) button is rendered at the *left* of
+   * the panel header — level with the "Vider" button so they can
+   * never overlap each other on small screens.
+   * Used by the mobile Dialog wrapper to dismiss the cart sheet.
+   */
+  onClose,
 }: {
   items: CartItem[];
   onQty: (id: string, size: string, delta: number) => void;
   onRemove: (id: string, size: string) => void;
   onClear: () => void;
+  onClose?: () => void;
 }) {
   const { branding } = useBranding();
   const { cashier } = useAuth();
@@ -511,10 +520,25 @@ export function CartPanel({
     // pinned to the bottom.
     <aside className="flex h-full min-h-0 w-full flex-col overflow-hidden lg:w-[24rem] lg:shrink-0">
       <div className="glass-strong flex h-full min-h-0 flex-col overflow-hidden rounded-none p-4 sm:rounded-3xl sm:p-5">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-bold">Commande en cours</h2>
+        {/* Header
+            ----------------------------------------------------
+            On mobile (when `onClose` is provided by the Dialog
+            wrapper) the close (X) button sits at the LEFT of the
+            header — the same row as the "Vider" button — so the
+            two never overlap. On desktop, the X is hidden. */}
+        <div className="flex items-center justify-between gap-2">
+          {onClose ? (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Fermer le panier"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-muted/60 text-foreground transition-colors hover:bg-muted"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          ) : null}
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-lg font-bold">Commande en cours</h2>
             <p className="text-xs text-muted-foreground">
               {items.length} article{items.length > 1 ? "s" : ""}
             </p>
@@ -524,11 +548,16 @@ export function CartPanel({
               variant="ghost"
               size="sm"
               onClick={onClear}
-              className="h-8 rounded-xl px-2 text-xs text-muted-foreground"
+              className="h-8 shrink-0 rounded-xl px-2 text-xs text-muted-foreground"
             >
               Vider
             </Button>
-          ) : null}
+          ) : (
+            // Reserve the same width as the "Vider" button so the
+            // title doesn't jump when the cart goes from empty to
+            // non-empty (and vice-versa).
+            <span aria-hidden className="h-8 w-14 shrink-0" />
+          )}
         </div>
 
         {/* Items */}
