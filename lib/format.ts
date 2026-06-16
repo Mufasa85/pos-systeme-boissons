@@ -190,6 +190,101 @@ export function formatRelative(
 }
 
 /* -------------------------------------------------------------------------- */
+/*                              Price formatting                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Hard-coded exchange rate used by the POS UI.
+ *
+ * In production this should come from the backend (the order model
+ * already stores the FX rate used at the time of the sale). For
+ * now we mirror the value exposed by the server's business config
+ * so the on-screen prices match what the printed receipt will show.
+ */
+export const FX_USD_TO_CDF = 2289.3077;
+
+/**
+ * The national currency of the DRC, used for all customer-facing
+ * amounts (cart, totals, receipt, on-screen invoice). The receipt
+ * convention is to write "10 000 FC" — `formatPrice` always uses
+ * that exact spelling.
+ */
+export type PriceCurrency = "CDF";
+
+/**
+ * Format a numeric amount as a Congolese-Franc string.
+ *
+ *   formatPrice(68679.23)  // → "68 679,23 FC"
+ *   formatPrice(0)         // → "0 FC"
+ *   formatPrice(null)      // → "—"
+ *
+ * The "FC" suffix is appended manually so the output is identical
+ * on every browser — the `narrowSymbol` for CDF is inconsistent
+ * across runtimes (some return "FC", some "CDF", some "Fr").
+ */
+export function formatPrice(
+  value: number | string | null | undefined,
+  currency: PriceCurrency = "CDF",
+): string {
+  const n = toNumber(value);
+  if (!Number.isFinite(n)) return "—";
+  try {
+    const formatted = new Intl.NumberFormat("fr-CD", {
+      style: "decimal",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }).format(n);
+    return `${formatted} ${currency}`;
+  } catch {
+    return `${n.toFixed(2)} ${currency}`;
+  }
+}
+
+/** Compact variant: "12,4 k FC" for 12 400. */
+export function formatPriceCompact(
+  value: number | string | null | undefined,
+  currency: PriceCurrency = "CDF",
+): string {
+  const n = toNumber(value);
+  if (!Number.isFinite(n)) return "—";
+  try {
+    const formatted = new Intl.NumberFormat("fr-CD", {
+      notation: "compact",
+      maximumFractionDigits: 1,
+    }).format(n);
+    return `${formatted} ${currency}`;
+  } catch {
+    return `${n.toFixed(0)} ${currency}`;
+  }
+}
+
+/**
+ * Format an amount that is already in USD. Used for the
+ * "Équivalent USD" line on the receipt — the value is computed
+ * by dividing the FC total by `FX_USD_TO_CDF`.
+ */
+export function formatUsd(
+  value: number | string | null | undefined,
+): string {
+  return formatCurrency(value, "USD");
+}
+
+/**
+ * Convert an FC amount to its USD equivalent using the hard-coded
+ * FX rate, then format it with `formatUsd`. Returns "—" for any
+ * non-finite input.
+ *
+ *   formatFcAsUsd(10000)  // → "4,37 $US"  (10000 / 2289.3077)
+ */
+export function formatFcAsUsd(
+  valueFc: number | string | null | undefined,
+): string {
+  const n = toNumber(valueFc);
+  if (!Number.isFinite(n)) return "—";
+  return formatUsd(n / FX_USD_TO_CDF);
+}
+
+/* -------------------------------------------------------------------------- */
 /*                                Math helpers                                */
 /* -------------------------------------------------------------------------- */
 

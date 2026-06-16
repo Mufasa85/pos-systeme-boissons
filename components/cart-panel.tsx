@@ -49,13 +49,27 @@ import {
   type ApiOrder,
 } from "@/lib/api";
 import { useFiscalInfo } from "@/lib/use-fiscal-info";
+import {
+  formatDateTime,
+  formatFcAsUsd,
+  formatPrice,
+  FX_USD_TO_CDF,
+} from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { CartItem } from "@/lib/types";
 
 // Discount feature removed
+//
+// All customer-facing amounts in this file are expressed in
+// **Congolese Francs (FC)**. The catalog (`drink.price`) is already
+// stored in FC, and the order model returns the totals in FC. We
+// format every number with `formatPrice()` from `lib/format.ts`
+// so the cart, the on-screen invoice and the printed ticket
+// stay perfectly consistent. The USD equivalent is shown as a
+// secondary line on the receipt / on-screen invoice for
+// reference.
 
 const TAX_RATE = 0.05;
-const FX_RATE = 2289.3077;
 
 const paymentMethods = [
   { id: "cash", label: "Espèces", method: "cash" as const, icon: Banknote },
@@ -126,10 +140,13 @@ export function CartPanel({
     setMounted(true);
   }, []);
 
-  const subtotal = items.reduce((s, i) => s + i.drink.price * i.quantity, 0);
+  // All math is done in FC.
+  const subtotal = items.reduce(
+    (s, i) => s + Number(i.drink.price) * i.quantity,
+    0,
+  );
   const tax = subtotal * TAX_RATE;
   const total = subtotal + tax;
-  const usdTotal = total / FX_RATE;
 
   // Items shown inside the dialog. After the order is paid we freeze
   // the snapshot so the receipt keeps showing the sold articles.
@@ -280,19 +297,12 @@ export function CartPanel({
   const receiptDate = paidOrder
     ? parseOrderDate(paidOrder.createdAt ?? orderCreatedAt)
     : new Date();
-  const receiptFxRate = paidOrder ? Number(paidOrder.fxRate) : FX_RATE;
+  // `paidOrder.totalAmount` is already in FC — we display it
+  // directly. If the order hasn't been confirmed yet we fall
+  // back to the dialog total (also in FC).
   const receiptTotalFc = paidOrder
     ? Number(paidOrder.totalAmount)
     : dialogTotal;
-  const receiptEquivalentUsd =
-    receiptFxRate > 0 ? receiptTotalFc / receiptFxRate : 0;
-
-  // Format a number with thousands separators (used in ticket prices)
-  const fmtFc = (n: number) =>
-    new Intl.NumberFormat("fr-FR", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(n);
 
   // Build the printable receipt as a React portal that we attach
   // directly to <body>. This bypasses any ancestor CSS rules that
@@ -341,16 +351,7 @@ export function CartPanel({
             {/* ===== Infos ticket ===== */}
             <div className="rcp-line rcp-tiny">
               <span>Date:</span>
-              <span>{receiptDate.toLocaleDateString("fr-FR")}</span>
-            </div>
-            <div className="rcp-line rcp-tiny">
-              <span>Heure:</span>
-              <span>
-                {receiptDate.toLocaleTimeString("fr-FR", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </span>
+              <span>{formatDateTime(receiptDate)}</span>
             </div>
             <div className="rcp-line rcp-tiny">
               <span>N° Ticket:</span>
@@ -411,7 +412,7 @@ export function CartPanel({
               </>
             ) : null}
 
-            {/* ===== Articles ===== */}
+            {/* ===== Articles (all amounts in FC) ===== */}
             {dialogItems.map((item) => (
               <div
                 key={`print-${item.drink.id}-${item.size}`}
@@ -423,10 +424,10 @@ export function CartPanel({
                 </div>
                 <div className="rcp-article-line rcp-tiny">
                   <span>
-                    {item.quantity} x {fmtFc(item.drink.price)}
+                    {item.quantity} x {formatPrice(item.drink.price)}
                   </span>
                   <span className="rcp-bold">
-                    {fmtFc(item.drink.price * item.quantity)} F
+                    {formatPrice(Number(item.drink.price) * item.quantity)}
                   </span>
                 </div>
               </div>
@@ -434,43 +435,47 @@ export function CartPanel({
 
             <div className="rcp-double" />
 
-            {/* ===== Totaux ===== */}
+            {/* ===== Totaux (en FC) ===== */}
             <div className="rcp-line rcp-tiny">
               <span>Sous-total HT</span>
               <span>
-                {fmtFc(
-                  paidOrder
-                    ? Number(paidOrder.totalAmount) -
-                        Number(paidOrder.taxAmount || 0)
-                    : dialogTotal - dialogTotal * (TAX_RATE / (1 + TAX_RATE)),
-                )}{" "}
-                F
+                {paidOrder
+                  ? formatPrice(
+                      Number(paidOrder.totalAmount) -
+                        Number(paidOrder.taxAmount || 0),
+                    )
+                  : formatPrice(
+                      dialogTotal - dialogTotal * (TAX_RATE / (1 + TAX_RATE)),
+                    )}
               </span>
             </div>
             <div className="rcp-line rcp-tiny">
               <span>TVA (5%)</span>
               <span>
-                {fmtFc(
-                  paidOrder
-                    ? Number(paidOrder.taxAmount || 0)
-                    : dialogTotal * (TAX_RATE / (1 + TAX_RATE)),
-                )}{" "}
-                F
+                {paidOrder
+                  ? formatPrice(Number(paidOrder.taxAmount || 0))
+                  : formatPrice(dialogTotal * (TAX_RATE / (1 + TAX_RATE)))}
               </span>
             </div>
 
             <div className="rcp-total">
               <span className="rcp-bold">TOTAL TTC</span>
-              <span className="rcp-bold">{fmtFc(receiptTotalFc)} F</span>
+              <span className="rcp-bold">{formatPrice(receiptTotalFc)}</span>
             </div>
 
-            <div className="rcp-line rcp-tiny">
-              <span>Taux du jour</span>
-              <span>{receiptFxRate.toFixed(2)} F/$</span>
-            </div>
+            {/* ===== Date + équivalent USD ===== */}
+            <div className="rcp-dashed" />
             <div className="rcp-line rcp-tiny">
               <span>Équivalent USD</span>
-              <span>$ {receiptEquivalentUsd.toFixed(2)}</span>
+              <span>{formatFcAsUsd(receiptTotalFc)}</span>
+            </div>
+            <div className="rcp-line rcp-tiny">
+              <span>Taux appliqué</span>
+              <span>1 $ = {FX_USD_TO_CDF.toLocaleString("fr-FR")} FC</span>
+            </div>
+            <div className="rcp-line rcp-tiny">
+              <span>Imprimé le</span>
+              <span>{formatDateTime(new Date())}</span>
             </div>
 
             <div className="rcp-dashed" />
@@ -481,7 +486,7 @@ export function CartPanel({
             </div>
             <div className="rcp-line">
               <span className="rcp-bold">Montant reçu:</span>
-              <span className="rcp-bold">{fmtFc(receiptTotalFc)} F</span>
+              <span className="rcp-bold">{formatPrice(receiptTotalFc)}</span>
             </div>
 
             <div className="rcp-double" />
@@ -591,8 +596,8 @@ export function CartPanel({
                     {item.drink.name}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {item.size ? `Taille ${item.size} · ` : ""}$
-                    {item.drink.price.toFixed(2)}
+                    {item.size ? `Taille ${item.size} · ` : ""}
+                    {formatPrice(item.drink.price)}
                   </p>
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -629,23 +634,25 @@ export function CartPanel({
           )}
         </div>
 
-        {/* Totals */}
+        {/* Totals — all in FC */}
         <div className="mt-4 space-y-2 border-t border-border pt-4 text-sm">
           <div className="flex justify-between text-muted-foreground">
             <span>Sous-total</span>
-            <span className="font-medium text-foreground">
-              ${subtotal.toFixed(2)}
+            <span className="font-medium text-foreground tabular-nums">
+              {formatPrice(subtotal)}
             </span>
           </div>
           <div className="flex justify-between text-muted-foreground">
             <span>TVA (5%)</span>
-            <span className="font-medium text-foreground">
-              ${tax.toFixed(2)}
+            <span className="font-medium text-foreground tabular-nums">
+              {formatPrice(tax)}
             </span>
           </div>
           <div className="flex justify-between pt-1 text-base font-bold">
             <span>Total</span>
-            <span className="brand-text">${total.toFixed(2)}</span>
+            <span className="brand-text tabular-nums">
+              {formatPrice(total)}
+            </span>
           </div>
         </div>
 
@@ -682,7 +689,9 @@ export function CartPanel({
           )}
         >
           <Lock className="mr-2 h-4 w-4" />
-          Valider la facture · ${(isEmpty ? 0 : total).toFixed(2)}
+          <span className="truncate">
+            Valider la facture · {formatPrice(isEmpty ? 0 : total)}
+          </span>
         </button>
       </div>
 
@@ -754,20 +763,24 @@ export function CartPanel({
 
             <div className="rounded-3xl bg-white p-3">
               <div className="flex justify-between text-[0.7rem] uppercase tracking-[0.15em] text-zinc-500">
+                <span>Date</span>
+                <span className="font-semibold text-zinc-900">
+                  {formatDateTime(receiptDate)}
+                </span>
+              </div>
+              <div className="flex justify-between text-[0.7rem] uppercase tracking-[0.15em] text-zinc-500">
+                <span>N° Ticket</span>
+                <span className="font-semibold text-zinc-900">
+                  {paidOrder?.orderNumber ?? "—"}
+                </span>
+              </div>
+              <div className="flex justify-between text-[0.7rem] uppercase tracking-[0.15em] text-zinc-500">
                 <span>Vendeur</span>
                 <span>{cashier?.fullName ?? "—"}</span>
               </div>
               <div className="flex justify-between text-[0.7rem] uppercase tracking-[0.15em] text-zinc-500">
                 <span>Numero Agent</span>
                 <span>{cashier?.code ?? "—"}</span>
-              </div>
-              <div className="flex justify-between text-[0.7rem] uppercase tracking-[0.15em] text-zinc-500">
-                <span>Date</span>
-                <span>{receiptDate.toLocaleString("fr-FR")}</span>
-              </div>
-              <div className="flex justify-between text-[0.7rem] uppercase tracking-[0.15em] text-zinc-500">
-                <span>Num</span>
-                <span>{paidOrder?.orderNumber ?? "—"}</span>
               </div>
               <div className="flex justify-between text-[0.7rem] uppercase tracking-[0.15em] text-zinc-500">
                 <span>Type</span>
@@ -840,7 +853,7 @@ export function CartPanel({
               <div className="flex items-center justify-between border-b border-dashed border-zinc-300 pb-2 text-[0.75rem] font-semibold uppercase tracking-[0.15em] text-zinc-700">
                 <span className="w-1/2">Article</span>
                 <span className="w-14 text-right">Qté</span>
-                <span className="w-20 text-right">HT</span>
+                <span className="w-24 text-right">Total</span>
               </div>
               <div className="space-y-2 pt-3">
                 {dialogItems.map((item) => (
@@ -852,8 +865,8 @@ export function CartPanel({
                       {item.drink.name} {item.size && `[${item.size}]`}
                     </span>
                     <span className="w-14 text-right">{item.quantity}</span>
-                    <span className="w-20 text-right">
-                      {(item.drink.price * item.quantity).toFixed(2)} Fc
+                    <span className="w-24 text-right tabular-nums">
+                      {formatPrice(Number(item.drink.price) * item.quantity)}
                     </span>
                   </div>
                 ))}
@@ -862,19 +875,27 @@ export function CartPanel({
 
             <div className="rounded-3xl bg-white p-3 text-[0.75rem] text-zinc-700">
               <div className="flex justify-between border-b border-dashed border-zinc-300 py-1">
-                <span>Total TTC</span>
+                <span>Date</span>
                 <span className="font-semibold text-zinc-900">
-                  {receiptTotalFc.toFixed(2)} Fc
+                  {formatDateTime(receiptDate)}
+                </span>
+              </div>
+              <div className="flex justify-between border-b border-dashed border-zinc-300 py-1">
+                <span>Total TTC</span>
+                <span className="font-semibold text-zinc-900 tabular-nums">
+                  {formatPrice(receiptTotalFc)}
+                </span>
+              </div>
+              <div className="flex justify-between border-b border-dashed border-zinc-300 py-1">
+                <span>Équivalent USD</span>
+                <span className="font-semibold text-zinc-900 tabular-nums">
+                  {formatFcAsUsd(receiptTotalFc)}
                 </span>
               </div>
               <div className="flex justify-between border-b border-dashed border-zinc-300 py-1">
                 <span>Taux du jour</span>
-                <span>{receiptFxRate.toFixed(4)} Fc/USD</span>
-              </div>
-              <div className="flex justify-between border-b border-dashed border-zinc-300 py-1">
-                <span>Equivalent en USD</span>
-                <span className="text-zinc-900">
-                  {receiptEquivalentUsd.toFixed(2)}$
+                <span className="tabular-nums">
+                  1 $ = {FX_USD_TO_CDF.toLocaleString("fr-FR")} FC
                 </span>
               </div>
               <div className="flex justify-between border-b border-dashed border-zinc-300 py-1">

@@ -1,24 +1,27 @@
-"use client"
+"use client";
 
-import Image from "next/image"
-import { Plus } from "lucide-react"
-import { useState } from "react"
-import type { Drink } from "@/lib/types"
-import { cn } from "@/lib/utils"
+import Image from "next/image";
+import { Plus } from "lucide-react";
+import { useState } from "react";
+import type { Drink } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import { formatPrice } from "@/lib/format";
 
 export function DrinkCard({
   drink,
   inCartQty = 0,
   onAdd,
 }: {
-  drink: Drink
-  inCartQty?: number
-  onAdd?: (drink: Drink, size: string) => void
+  drink: Drink;
+  inCartQty?: number;
+  onAdd?: (drink: Drink, size: string) => void;
 }) {
-  const sizes = drink.sizes ?? []
-  const [size, setSize] = useState(sizes.length ? sizes[Math.min(1, sizes.length - 1)] : "")
-  const lowStock = drink.stock <= 15
-  const isSimple = typeof onAdd !== "function"
+  const sizes = drink.sizes ?? [];
+  const [size, setSize] = useState(
+    sizes.length ? sizes[Math.min(1, sizes.length - 1)] : "",
+  );
+  const lowStock = drink.stock <= 15;
+  const isSimple = typeof onAdd !== "function";
 
   return (
     <div className="glass flex min-h-[18rem] flex-col rounded-3xl p-4 transition-shadow hover:shadow-lg">
@@ -32,7 +35,7 @@ export function DrinkCard({
         />
         {lowStock && (
           <span className="absolute left-3 top-3 rounded-full bg-destructive/90 px-2.5 py-1 text-[10px] font-semibold text-white">
-            Low stock
+            Stock bas
           </span>
         )}
       </div>
@@ -44,10 +47,13 @@ export function DrinkCard({
           </h3>
           <p className="mt-1 text-xs text-muted-foreground">{drink.category}</p>
         </div>
-        <span className="brand-text text-base font-bold">${drink.price.toFixed(2)}</span>
+        {/* All customer-facing prices are displayed in Congolese
+            Francs. The amount is taken from the catalog (drink.price
+            is already in FC), and formatted with the FC suffix. */}
+        <span className="brand-text shrink-0 text-base font-bold tabular-nums">
+          {formatPrice(drink.price)}
+        </span>
       </div>
-
-      {/* description removed from card per request */}
 
       <div className="mt-auto flex items-center justify-between gap-2">
         <span
@@ -58,7 +64,7 @@ export function DrinkCard({
               : "bg-emerald-500/10 text-emerald-600",
           )}
         >
-          {drink.stock} in stock
+          {drink.stock} en stock
         </span>
 
         {!isSimple && sizes.length > 1 && (
@@ -97,19 +103,19 @@ export function DrinkCard({
               drink.stock <= 0
                 ? "cursor-not-allowed bg-muted/50 text-muted-foreground opacity-70"
                 : inCartQty && inCartQty > 0
-                ? "brand-bg"
-                : "bg-muted/70 text-foreground hover:brightness-95",
+                  ? "brand-bg"
+                  : "bg-muted/70 text-foreground hover:brightness-95",
             )}
           >
             <Plus className="h-4 w-4" />
             {drink.stock <= 0
-              ? "Out of stock"
+              ? "Rupture de stock"
               : inCartQty && inCartQty > 0
-                ? `In cart · ${inCartQty}`
-                : "Add to cart"}
+                ? `Au panier · ${inCartQty}`
+                : "Ajouter au panier"}
           </button>
         </div>
       )}
     </div>
-  )
+  );
 }
