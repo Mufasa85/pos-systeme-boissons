@@ -10,7 +10,7 @@
 const API_BASE_URL =
   (typeof process !== "undefined" &&
     process.env.NEXT_PUBLIC_API_BASE_URL) ||
-  "http://192.168.100.204:4000/api"
+  "http://localhost:4000/api"
 
 const TOKEN_STORAGE_KEY = "pos-brikin:auth-token"
 
