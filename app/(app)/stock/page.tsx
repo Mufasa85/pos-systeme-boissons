@@ -11,11 +11,17 @@ import {
 import {
   AlertCircle,
   CheckCircle2,
+  DollarSign,
   Edit3,
+  FileText,
   Image as ImageIcon,
+  Layers,
   Loader2,
+  Package,
   Plus,
   RefreshCw,
+  Ruler,
+  Tag,
   Trash2,
   UploadCloud,
   X,
@@ -23,6 +29,28 @@ import {
 import Image from "next/image";
 import { PosShell } from "@/components/pos-shell";
 import { Button } from "@/components/ui/button";
+
+// Resolve a (possibly relative) image path coming from the API into
+// an absolute URL the browser can load. The API stores `imageUrl`
+// as a path like `/uploads/drinks/xxx.jpg`; we prepend the API
+// origin (read from `NEXT_PUBLIC_API_BASE_URL`) so the <img>
+// resolves to the real cloudflare / localhost server.
+function resolveImageUrl(path: string | null | undefined): string {
+  if (!path) return "/drinks/placeholder.png";
+  if (/^https?:\/\//i.test(path)) return path;
+  const base =
+    (typeof process !== "undefined" && process.env.NEXT_PUBLIC_API_BASE_URL) ||
+    "";
+  if (!base) return path;
+  if (path.startsWith("/")) {
+    try {
+      return new URL(base).origin + path;
+    } catch {
+      return path;
+    }
+  }
+  return `${base.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
+}
 import {
   Dialog,
   DialogContent,
@@ -161,7 +189,7 @@ export default function StockPage() {
         product.category?.slug ??
         categoryOptions.find((c) => c.id === product.categoryId)?.slug ??
         firstCategorySlug,
-      image: product.imageUrl || "/drinks/placeholder.png",
+      image: resolveImageUrl(product.imageUrl) || "/drinks/placeholder.png",
       stock: product.stockQuantity ?? 0,
       popularity: product.popularity ?? 0,
       sizes: (product.sizes ?? []).map((s) => s.label).join(", "),
@@ -411,7 +439,7 @@ export default function StockPage() {
                       <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-card">
                         {d.imageUrl ? (
                           <Image
-                            src={d.imageUrl}
+                            src={resolveImageUrl(d.imageUrl)}
                             alt={d.name}
                             width={48}
                             height={48}
@@ -513,19 +541,46 @@ export default function StockPage() {
           </DialogHeader>
 
           <form
-            className="grid min-h-0 flex-1 gap-4 overflow-y-auto px-5 py-4 md:grid-cols-2"
+            className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-muted/20 px-5 py-4"
             onSubmit={handleSubmit}
           >
-            {/* Image upload + preview (spans both columns) */}
-            <div className="md:col-span-2 space-y-2">
-              <p className="text-sm font-medium text-muted-foreground">
-                Photo du produit
-              </p>
-              <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
-                <div className="relative flex h-32 w-32 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-dashed border-border bg-muted/40">
+            {/* ============================================================
+                CARD 1 — Image du produit
+                ============================================================ */}
+            <section className="rounded-2xl border border-border bg-background p-4 shadow-sm">
+              <header className="mb-3 flex items-center gap-2">
+                <span className="brand-soft flex h-8 w-8 items-center justify-center rounded-xl">
+                  <ImageIcon className="brand-text h-4 w-4" />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold">Photo du produit</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    JPEG, PNG ou WebP · affichée sur le POS et le menu
+                  </p>
+                </div>
+              </header>
+
+              <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center">
+                <div
+                  className="relative flex h-40 w-full shrink-0 items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-border bg-muted/30 sm:h-32 sm:w-32"
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    const file = event.dataTransfer.files?.[0];
+                    if (!file) return;
+                    if (!file.type.startsWith("image/")) {
+                      setFormError(
+                        "Le fichier doit être une image (jpg, png, webp, …).",
+                      );
+                      return;
+                    }
+                    setFormError(null);
+                    setImageFile(file);
+                  }}
+                >
                   {previewSrc ? (
-                    // Local object URLs (`blob:`) are not optimisable
-                    // by next/image, so we use a plain <img>.
                     previewSrc.startsWith("blob:") ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -544,9 +599,15 @@ export default function StockPage() {
                       />
                     )
                   ) : (
-                    <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                    <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                      <UploadCloud className="h-7 w-7" />
+                      <span className="text-[10px] uppercase tracking-wider">
+                        Glisser / cliquer
+                      </span>
+                    </div>
                   )}
                 </div>
+
                 <div className="flex flex-1 flex-col gap-2">
                   <input
                     ref={fileInputRef}
@@ -558,7 +619,7 @@ export default function StockPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <Button
                       type="button"
-                      variant="secondary"
+                      variant="default"
                       size="sm"
                       onClick={pickImageFile}
                       className="gap-2"
@@ -578,13 +639,24 @@ export default function StockPage() {
                         Retirer
                       </Button>
                     ) : null}
-                    {imageFile ? (
-                      <span className="max-w-[200px] truncate text-xs text-muted-foreground">
-                        {imageFile.name} · {(imageFile.size / 1024).toFixed(1)}{" "}
-                        Ko
-                      </span>
-                    ) : null}
                   </div>
+                  {imageFile ? (
+                    <p className="text-[11px] text-muted-foreground">
+                      <span className="font-medium text-foreground">
+                        {imageFile.name}
+                      </span>{" "}
+                      · {(imageFile.size / 1024).toFixed(1)} Ko
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground">
+                      Glisse une image ici ou utilise le bouton. L'URL est
+                      envoyée à{" "}
+                      <code className="rounded bg-muted px-1 py-0.5">
+                        /api/uploads/image
+                      </code>
+                      .
+                    </p>
+                  )}
                   {uploadProgress !== null ? (
                     <div className="space-y-1">
                       <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
@@ -598,150 +670,202 @@ export default function StockPage() {
                       </p>
                     </div>
                   ) : null}
-                  <p className="text-[11px] text-muted-foreground">
-                    JPEG, PNG ou WebP. L'image est uploadée sur{" "}
-                    <code className="rounded bg-muted px-1 py-0.5">
-                      /api/uploads/image
-                    </code>{" "}
-                    et l'URL est enregistrée avec le produit.
-                  </p>
                 </div>
               </div>
-            </div>
+            </section>
 
-            <div className="space-y-2">
-              <label
-                htmlFor="product-name"
-                className="text-sm font-medium text-muted-foreground"
-              >
-                Nom du produit
-              </label>
-              <input
-                id="product-name"
-                value={form.name}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, name: event.target.value }))
-                }
-                placeholder="Ex. Hennessy VS"
-                required
-                className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
-              />
-            </div>
+            {/* ============================================================
+                CARD 2 — Informations générales
+                ============================================================ */}
+            <section className="rounded-2xl border border-border bg-background p-4 shadow-sm">
+              <header className="mb-3 flex items-center gap-2">
+                <span className="brand-soft flex h-8 w-8 items-center justify-center rounded-xl">
+                  <Tag className="brand-text h-4 w-4" />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold">Informations</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Nom, description et catégorie
+                  </p>
+                </div>
+              </header>
 
-            <div className="space-y-2">
-              <label
-                htmlFor="product-category"
-                className="text-sm font-medium text-muted-foreground"
-              >
-                Catégorie
-              </label>
-              <select
-                id="product-category"
-                value={form.category}
-                onChange={(event) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    category: event.target.value,
-                  }))
-                }
-                disabled={categoryOptions.length === 0}
-                className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 disabled:opacity-50"
-              >
-                {categoryOptions.length > 0 ? (
-                  categoryOptions.map((category) => (
-                    <option key={category.id} value={category.slug}>
-                      {category.label}
-                    </option>
-                  ))
-                ) : (
-                  <option value={FALLBACK_FORM_CATEGORY} disabled>
-                    Chargement des catégories…
-                  </option>
-                )}
-              </select>
-            </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5 sm:col-span-2">
+                  <label
+                    htmlFor="product-name"
+                    className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                  >
+                    Nom du produit
+                  </label>
+                  <div className="relative">
+                    <Package className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      id="product-name"
+                      value={form.name}
+                      onChange={(event) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          name: event.target.value,
+                        }))
+                      }
+                      placeholder="Ex. Hennessy VS"
+                      required
+                      className="h-11 w-full rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+                    />
+                  </div>
+                </div>
 
-            <div className="space-y-2">
-              <label
-                htmlFor="product-price"
-                className="text-sm font-medium text-muted-foreground"
-              >
-                Prix (USD)
-              </label>
-              <input
-                id="product-price"
-                type="number"
-                step="0.01"
-                min="0"
-                value={form.price}
-                onChange={(event) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    price: Number(event.target.value),
-                  }))
-                }
-                className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
-              />
-            </div>
+                <div className="space-y-1.5 sm:col-span-2">
+                  <label
+                    htmlFor="product-description"
+                    className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                  >
+                    Description
+                  </label>
+                  <div className="relative">
+                    <FileText className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <textarea
+                      id="product-description"
+                      value={form.description}
+                      onChange={(event) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          description: event.target.value,
+                        }))
+                      }
+                      placeholder="Description affichée dans le menu…"
+                      rows={2}
+                      className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+                    />
+                  </div>
+                </div>
 
-            <div className="space-y-2">
-              <label
-                htmlFor="product-stock"
-                className="text-sm font-medium text-muted-foreground"
-              >
-                Stock
-              </label>
-              <input
-                id="product-stock"
-                type="number"
-                min="0"
-                value={form.stock}
-                onChange={(event) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    stock: Number(event.target.value),
-                  }))
-                }
-                className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
-              />
-            </div>
+                <div className="space-y-1.5 sm:col-span-2">
+                  <label
+                    htmlFor="product-category"
+                    className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                  >
+                    Catégorie
+                  </label>
+                  <div className="relative">
+                    <Layers className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <select
+                      id="product-category"
+                      value={form.category}
+                      onChange={(event) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          category: event.target.value,
+                        }))
+                      }
+                      disabled={categoryOptions.length === 0}
+                      className="h-11 w-full appearance-none rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20 disabled:opacity-50"
+                    >
+                      {categoryOptions.length > 0 ? (
+                        categoryOptions.map((category) => (
+                          <option key={category.id} value={category.slug}>
+                            {category.label}
+                          </option>
+                        ))
+                      ) : (
+                        <option value={FALLBACK_FORM_CATEGORY} disabled>
+                          Chargement des catégories…
+                        </option>
+                      )}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </section>
 
-            <div className="md:col-span-2 space-y-2">
-              <label
-                htmlFor="product-description"
-                className="text-sm font-medium text-muted-foreground"
-              >
-                Description
-              </label>
-              <textarea
-                id="product-description"
-                value={form.description}
-                onChange={(event) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    description: event.target.value,
-                  }))
-                }
-                placeholder="Description affichée dans le menu…"
-                rows={2}
-                className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
-              />
-            </div>
+            {/* ============================================================
+                CARD 3 — Prix, stock & tailles
+                ============================================================ */}
+            <section className="rounded-2xl border border-border bg-background p-4 shadow-sm">
+              <header className="mb-3 flex items-center gap-2">
+                <span className="brand-soft flex h-8 w-8 items-center justify-center rounded-xl">
+                  <DollarSign className="brand-text h-4 w-4" />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold">Prix, stock </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Tarification, inventaire et variantes disponibles
+                  </p>
+                </div>
+              </header>
 
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor="product-price"
+                    className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                  >
+                    Prix (USD)
+                  </label>
+                  <div className="relative">
+                    <DollarSign className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      id="product-price"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={form.price}
+                      onChange={(event) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          price: Number(event.target.value),
+                        }))
+                      }
+                      className="h-11 w-full rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor="product-stock"
+                    className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                  >
+                    Stock disponible
+                  </label>
+                  <div className="relative">
+                    <Tag className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      id="product-stock"
+                      type="number"
+                      min="0"
+                      value={form.stock}
+                      onChange={(event) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          stock: Number(event.target.value),
+                        }))
+                      }
+                      className="h-11 w-full rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+                    />
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* ============================================================
+                Erreur + bouton de soumission
+                ============================================================ */}
             {formError ? (
               <div
                 role="alert"
-                className="md:col-span-2 flex items-start gap-2 rounded-2xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+                className="flex items-start gap-2 rounded-2xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
               >
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>{formError}</span>
               </div>
             ) : null}
 
-            <div className="md:col-span-2">
+            <div className="sticky bottom-0 -mx-5 border-t border-border bg-background px-5 py-3">
               <Button
                 type="submit"
-                className="w-full justify-center"
+                className="h-12 w-full justify-center text-sm font-semibold shadow-sm"
                 disabled={saving || categoryOptions.length === 0}
               >
                 {saving ? (
@@ -750,25 +874,21 @@ export default function StockPage() {
                     {imageFile ? "Upload + enregistrement…" : "Enregistrement…"}
                   </span>
                 ) : editingId !== null ? (
-                  "Enregistrer les modifications"
+                  <>
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    Enregistrer les modifications
+                  </>
                 ) : (
-                  "Créer le produit"
+                  <>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Créer le produit
+                  </>
                 )}
               </Button>
             </div>
           </form>
 
-          <DialogFooter className="shrink-0 gap-2 border-t border-border bg-muted/40 px-5 py-3 sm:justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={closeDialog}
-              disabled={saving}
-              className="flex-1 sm:flex-none"
-            >
-              Annuler
-            </Button>
-          </DialogFooter>
+          <DialogFooter className="shrink-0 gap-2 border-t border-border bg-muted/40 px-5 py-3 sm:justify-end"></DialogFooter>
         </DialogContent>
       </Dialog>
     </PosShell>
