@@ -1,25 +1,18 @@
 "use client";
 
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import {
   AlertCircle,
   Banknote,
-  Building2,
   CheckCircle2,
   CreditCard,
   Loader2,
   Lock,
-  Mail,
-  MapPin,
   Minus,
-  MoreVertical,
-  Phone,
   Plus,
   Printer,
   Smartphone,
   Trash2,
-  User as UserIcon,
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -34,20 +27,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { CustomerDialog } from "@/components/customer-dialog";
-import {
-  ApiCustomer,
-  ApiError,
-  createOrder,
-  payOrder,
-  type ApiOrder,
-} from "@/lib/api";
+import { ApiError, createOrder, payOrder, type ApiOrder } from "@/lib/api";
 import { useFiscalInfo } from "@/lib/use-fiscal-info";
 import {
   formatDateTime,
@@ -107,10 +87,7 @@ export function CartPanel({
   const { cashier } = useAuth();
   const { data: fiscal, loading: fiscalLoading } = useFiscalInfo();
 
-  const router = useRouter();
   const [payment, setPayment] = useState<PayMethod>("card");
-  const [customerOpen, setCustomerOpen] = useState(false);
-  const [customer, setCustomer] = useState<ApiCustomer | null>(null);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
@@ -126,15 +103,8 @@ export function CartPanel({
   const [lastTotalSnapshot, setLastTotalSnapshot] = useState(0);
   const [lastPaymentSnapshot, setLastPaymentSnapshot] =
     useState<PayMethod>("card");
-  const [lastCustomerSnapshot, setLastCustomerSnapshot] =
-    useState<ApiCustomer | null>(null);
 
   const printRef = useRef<HTMLDivElement>(null);
-
-  function viewHistory() {
-    setInvoiceOpen(false);
-    router.push("/history");
-  }
 
   useEffect(() => {
     setMounted(true);
@@ -153,9 +123,6 @@ export function CartPanel({
   const dialogItems: CartItem[] = paidOrder ? lastCartSnapshot : items;
   const dialogTotal = paidOrder ? lastTotalSnapshot : total;
   const dialogPayment: PayMethod = paidOrder ? lastPaymentSnapshot : payment;
-  const dialogCustomer: ApiCustomer | null = paidOrder
-    ? lastCustomerSnapshot
-    : customer;
 
   // During SSR and the first client render (before effects run) we force
   // the UI to represent an empty cart to avoid hydration mismatches.
@@ -169,43 +136,23 @@ export function CartPanel({
       setPaidOrder(null);
       setLastCartSnapshot([]);
       setLastTotalSnapshot(0);
-      setLastCustomerSnapshot(null);
     }
   }, [invoiceOpen, items.length]);
 
   // ============================================================
   // Flow:
-  //   1. "Valider la facture" → open CustomerDialog
-  //   2. Cashier picks / creates / skips the customer
-  //   3. CartPanel then opens the invoice Dialog and snapshots
-  //      the customer (so the receipt keeps showing it after
-  //      the order is paid and the cart is cleared)
+  //   1. "Valider la facture" → opens the invoice Dialog directly
+  //      (no customer step — all sales are anonymous).
+  //   2. Cashier reviews the receipt and clicks "Confirmer la vente".
+  //   3. We snapshot the cart so the printed/on-screen receipt
+  //      keeps showing the sold items after the cart is cleared.
   // ============================================================
 
   function startSale() {
     if (isEmpty) return;
     setConfirmError(null);
     setPaidOrder(null);
-    setLastCustomerSnapshot(null);
-    setCustomerOpen(true);
-  }
-
-  function onCustomerSelected(selected: ApiCustomer) {
-    setCustomer(selected);
-    setLastCustomerSnapshot(selected);
-    setCustomerOpen(false);
     setInvoiceOpen(true);
-  }
-
-  function onCustomerSkipped() {
-    setCustomer(null);
-    setLastCustomerSnapshot(null);
-    setCustomerOpen(false);
-    setInvoiceOpen(true);
-  }
-
-  function closeCustomerDialog() {
-    setCustomerOpen(false);
   }
 
   function closeInvoice() {
@@ -217,13 +164,11 @@ export function CartPanel({
     if (confirming || items.length === 0) return;
     setConfirming(true);
     setConfirmError(null);
-    // Capture a snapshot of the cart + customer before we clear
-    // them so the receipt and the print view keep showing the
-    // sold items and the resolved customer.
+    // Capture a snapshot of the cart before we clear it so the
+    // receipt and the print view keep showing the sold items.
     setLastCartSnapshot(items);
     setLastTotalSnapshot(total);
     setLastPaymentSnapshot(payment);
-    setLastCustomerSnapshot(customer);
     try {
       // 1. Create the order in "pending" state on the server
       const order = await createOrder({
@@ -231,7 +176,6 @@ export function CartPanel({
           productId: Number(it.drink.id),
           quantity: it.quantity,
         })),
-        ...(customer?.id ? { customerId: customer.id } : {}),
       });
       // 2. Mark the order as paid and create the Payment row
       const paid = await payOrder(order.id, {
@@ -332,6 +276,26 @@ export function CartPanel({
 
             <div className="rcp-dashed" />
 
+            {/* ===== Numéro de ticket (mis en avant) ===== */}
+            {paidOrder?.orderNumber ? (
+              <div className="rcp-center" style={{ padding: "4px 0" }}>
+                <div
+                  className="rcp-uppercase rcp-tiny rcp-muted"
+                  style={{ letterSpacing: "0.2em" }}
+                >
+                  Ticket N°
+                </div>
+                <div
+                  className="rcp-bold"
+                  style={{ fontSize: "1.4em", marginTop: "2px" }}
+                >
+                  {paidOrder.orderNumber}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="rcp-dashed" />
+
             {/* ===== Infos fiscales ===== */}
             <div className="rcp-line rcp-tiny">
               <span>ID Nat:</span>
@@ -367,50 +331,6 @@ export function CartPanel({
             </div>
 
             <div className="rcp-double" />
-
-            {/* ===== Client ===== */}
-            {dialogCustomer ? (
-              <>
-                <div className="rcp-uppercase rcp-tiny rcp-muted rcp-center">
-                  Client
-                </div>
-                <div className="rcp-line rcp-tiny">
-                  <span>Type:</span>
-                  <span>
-                    {dialogCustomer.type === "company" ? "Société" : "Personne"}
-                  </span>
-                </div>
-                <div className="rcp-line rcp-tiny">
-                  <span>Nom:</span>
-                  <span>{dialogCustomer.name}</span>
-                </div>
-                {dialogCustomer.phone ? (
-                  <div className="rcp-line rcp-tiny">
-                    <span>Tél:</span>
-                    <span>{dialogCustomer.phone}</span>
-                  </div>
-                ) : null}
-                {dialogCustomer.email ? (
-                  <div className="rcp-line rcp-tiny">
-                    <span>Email:</span>
-                    <span>{dialogCustomer.email}</span>
-                  </div>
-                ) : null}
-                {dialogCustomer.taxId ? (
-                  <div className="rcp-line rcp-tiny">
-                    <span>N° Impôt:</span>
-                    <span>{dialogCustomer.taxId}</span>
-                  </div>
-                ) : null}
-                {dialogCustomer.address ? (
-                  <div className="rcp-line rcp-tiny">
-                    <span>Adresse:</span>
-                    <span>{dialogCustomer.address}</span>
-                  </div>
-                ) : null}
-                <div className="rcp-dashed" />
-              </>
-            ) : null}
 
             {/* ===== Articles (all amounts in FC) ===== */}
             {dialogItems.map((item) => (
@@ -507,6 +427,27 @@ export function CartPanel({
 
             <div className="rcp-center rcp-tiny rcp-muted">
               Conservez votre ticket
+            </div>
+
+            <div className="rcp-double" />
+
+            {/* ===== Bloc promo JOAC LOUNGE ===== */}
+            <div
+              className="rcp-center"
+              style={{ padding: "6px 0 2px", lineHeight: 1.4 }}
+            >
+              <div
+                className="rcp-bold rcp-uppercase"
+                style={{ fontSize: "1.15em", letterSpacing: "0.15em" }}
+              >
+                JOAC LOUNGE
+              </div>
+              <div className="rcp-tiny" style={{ marginTop: "4px" }}>
+                vivez l'experrience autrement
+              </div>
+              <div className="rcp-tiny rcp-muted" style={{ marginTop: "2px" }}>
+                Suivez nous sur Facebook et instagram @joac-lounge
+              </div>
             </div>
           </div>,
           document.body,
@@ -695,41 +636,13 @@ export function CartPanel({
         </button>
       </div>
 
-      {/* Customer dialog — opens first when validating the sale */}
-      <CustomerDialog
-        open={customerOpen}
-        onOpenChange={setCustomerOpen}
-        onConfirm={onCustomerSelected}
-        onSkip={onCustomerSkipped}
-      />
-
       {/* Invoice preview */}
       <Dialog open={invoiceOpen} onOpenChange={setInvoiceOpen}>
         <DialogContent className="w-88 max-w-88 rounded-[2rem] bg-zinc-50 p-3 text-zinc-900 shadow-2xl ring-1 ring-zinc-200 sm:w-88 sm:max-w-88 max-h-[calc(100vh-1rem)] overflow-hidden">
           <div className="relative h-[calc(100vh-1rem-12rem)] overflow-y-auto rounded-[2rem] border border-dashed border-zinc-300 bg-white px-4 py-4 text-[0.72rem] shadow-sm">
             <div className="absolute inset-x-0 top-0 h-8 bg-zinc-100 bg-[repeating-linear-gradient(90deg,#f8fafc_0_8px,transparent_8px_16px)]" />
-            <div className="absolute right-3 top-3">
-              <DropdownMenu>
-                <DropdownMenuTrigger>
-                  <button
-                    type="button"
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-700 transition hover:bg-zinc-200"
-                    aria-label="Ouvrir le menu de la facture"
-                  >
-                    <MoreVertical className="h-4 w-4" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  side="bottom"
-                  align="end"
-                  className="min-w-40"
-                >
-                  <DropdownMenuItem onClick={viewHistory}>
-                    Voir l'historique des commandes
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+            {/* The "three-dot" menu was removed: nothing is rendered
+                in the top-right corner of the invoice preview anymore. */}
             <div className="relative space-y-3 text-center">
               <p className="text-[0.68rem] uppercase tracking-[0.3em] text-zinc-500">
                 Point de vente
@@ -782,71 +695,6 @@ export function CartPanel({
                 <span>Numero Agent</span>
                 <span>{cashier?.code ?? "—"}</span>
               </div>
-              <div className="flex justify-between text-[0.7rem] uppercase tracking-[0.15em] text-zinc-500">
-                <span>Type</span>
-                <span>
-                  {dialogCustomer
-                    ? dialogCustomer.type === "company"
-                      ? "Société"
-                      : "Personne"
-                    : "Personne Physique"}
-                </span>
-              </div>
-            </div>
-
-            {/* Customer block — shown on the on-screen invoice */}
-            <div className="rounded-3xl bg-white p-3">
-              <div className="mb-1.5 flex items-center justify-between text-[0.7rem] uppercase tracking-[0.15em] text-zinc-500">
-                <span>Client</span>
-                {dialogCustomer ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[0.6rem] font-semibold text-emerald-700">
-                    {dialogCustomer.type === "company" ? (
-                      <Building2 className="h-2.5 w-2.5" />
-                    ) : (
-                      <UserIcon className="h-2.5 w-2.5" />
-                    )}
-                    {dialogCustomer.type === "company" ? "Société" : "Personne"}
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[0.6rem] font-semibold text-zinc-600">
-                    Anonyme
-                  </span>
-                )}
-              </div>
-              {dialogCustomer ? (
-                <div className="space-y-1 text-[0.72rem] text-zinc-700">
-                  <p className="truncate text-sm font-semibold text-zinc-900">
-                    {dialogCustomer.name}
-                  </p>
-                  {dialogCustomer.phone ? (
-                    <p className="flex items-center gap-1 truncate text-zinc-600">
-                      <Phone className="h-3 w-3" />
-                      {dialogCustomer.phone}
-                    </p>
-                  ) : null}
-                  {dialogCustomer.email ? (
-                    <p className="flex items-center gap-1 truncate text-zinc-600">
-                      <Mail className="h-3 w-3" />
-                      {dialogCustomer.email}
-                    </p>
-                  ) : null}
-                  {dialogCustomer.taxId ? (
-                    <p className="truncate text-zinc-600">
-                      N° Impôt: {dialogCustomer.taxId}
-                    </p>
-                  ) : null}
-                  {dialogCustomer.address ? (
-                    <p className="flex items-center gap-1 truncate text-zinc-600">
-                      <MapPin className="h-3 w-3" />
-                      {dialogCustomer.address}
-                    </p>
-                  ) : null}
-                </div>
-              ) : (
-                <p className="text-[0.72rem] italic text-zinc-500">
-                  Vente anonyme — aucun client associé.
-                </p>
-              )}
             </div>
 
             <div className="rounded-3xl bg-white p-3">
