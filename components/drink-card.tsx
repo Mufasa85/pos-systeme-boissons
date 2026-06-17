@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import { Plus } from "lucide-react";
-import { useState } from "react";
 import type { Drink } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/format";
@@ -16,11 +15,10 @@ export function DrinkCard({
   inCartQty?: number;
   onAdd?: (drink: Drink, size: string) => void;
 }) {
-  const sizes = drink.sizes ?? [];
-  const [size, setSize] = useState(
-    sizes.length ? sizes[Math.min(1, sizes.length - 1)] : "",
-  );
   const lowStock = drink.stock <= 15;
+  // Size selector (L / M / S, etc.) was removed from the card: each
+  // product is now added to the cart with an empty size, and the
+  // unit price is the single base price coming from the catalog.
   const isSimple = typeof onAdd !== "function";
 
   return (
@@ -66,55 +64,29 @@ export function DrinkCard({
         >
           {drink.stock} en stock
         </span>
-
-        {!isSimple && sizes.length > 1 && (
-          <span className="rounded-full bg-muted/80 px-3 py-1 text-xs text-muted-foreground">
-            {size}
-          </span>
-        )}
       </div>
 
       {!isSimple && (
-        <div className="mt-4 flex flex-col gap-3">
-          <div className="flex flex-wrap gap-2">
-            {sizes.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setSize(s)}
-                className={cn(
-                  "h-9 min-w-[2.5rem] rounded-xl px-3 text-xs font-medium transition-colors",
-                  size === s
-                    ? "brand-soft"
-                    : "bg-muted/60 text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-
-          <button
-            type="button"
-            disabled={drink.stock <= 0}
-            onClick={() => onAdd?.(drink, size || sizes[0] || "")}
-            className={cn(
-              "flex h-11 items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition-colors",
-              drink.stock <= 0
-                ? "cursor-not-allowed bg-muted/50 text-muted-foreground opacity-70"
-                : inCartQty && inCartQty > 0
-                  ? "brand-bg"
-                  : "bg-muted/70 text-foreground hover:brightness-95",
-            )}
-          >
-            <Plus className="h-4 w-4" />
-            {drink.stock <= 0
-              ? "Rupture de stock"
+        <button
+          type="button"
+          disabled={drink.stock <= 0}
+          onClick={() => onAdd?.(drink, "")}
+          className={cn(
+            "mt-4 flex h-11 items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition-colors",
+            drink.stock <= 0
+              ? "cursor-not-allowed bg-muted/50 text-muted-foreground opacity-70"
               : inCartQty && inCartQty > 0
-                ? `Au panier · ${inCartQty}`
-                : "Ajouter au panier"}
-          </button>
-        </div>
+                ? "brand-bg"
+                : "bg-muted/70 text-foreground hover:brightness-95",
+          )}
+        >
+          <Plus className="h-4 w-4" />
+          {drink.stock <= 0
+            ? "Rupture de stock"
+            : inCartQty && inCartQty > 0
+              ? `Au panier · ${inCartQty}`
+              : "Ajouter au panier"}
+        </button>
       )}
     </div>
   );
