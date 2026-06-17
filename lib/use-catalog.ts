@@ -112,6 +112,36 @@ function mapCategories(api: ApiCategory[]): Category[] {
   return [ALL_CATEGORY, ...real];
 }
 
+// Resolve a (possibly relative) image path coming from the API into
+// an absolute URL the browser can load.
+//
+// The API stores `imageUrl` as a path like `/uploads/drinks/xxx.jpg`.
+// On the client side we need to prepend the API origin (read from
+// `NEXT_PUBLIC_API_BASE_URL`) so the <img src="…"> resolves to the
+// real cloudflare / localhost server.
+//
+//   • empty / nullish     → fallback placeholder
+//   • already absolute    → return as-is
+//   • starts with "/"     → prepend the API origin
+//   • relative (no slash) → prepend the full API base URL
+function resolveImageUrl(path: string | null | undefined): string {
+  if (!path) return "/drinks/placeholder.png";
+  if (/^https?:\/\//i.test(path)) return path;
+  const base =
+    (typeof process !== "undefined" &&
+      process.env.NEXT_PUBLIC_API_BASE_URL) ||
+    "";
+  if (!base) return path;
+  if (path.startsWith("/")) {
+    try {
+      return new URL(base).origin + path;
+    } catch {
+      return path;
+    }
+  }
+  return `${base.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
+}
+
 function mapProduct(p: ApiProduct): Drink {
   const price = typeof p.price === "string" ? parseFloat(p.price) : p.price;
   const sizes = p.sizes?.map((s) => s.label);
@@ -121,7 +151,7 @@ function mapProduct(p: ApiProduct): Drink {
     description: p.description ?? "",
     price: Number.isFinite(price) ? (price as number) : 0,
     category: ((p.category?.slug ?? "") as unknown) as Drink["category"],
-    image: p.imageUrl || "/drinks/placeholder.png",
+    image: resolveImageUrl(p.imageUrl) || "/drinks/placeholder.png",
     stock: p.stockQuantity ?? 0,
     popularity: p.popularity ?? 0,
     ...(sizes && sizes.length ? { sizes } : {}),
