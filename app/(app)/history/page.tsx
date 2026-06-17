@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { MoreVertical, XIcon } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { MoreVertical, Printer, XIcon } from "lucide-react";
 import { PosShell } from "@/components/pos-shell";
+import { useBranding } from "@/components/branding-provider";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,6 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useFiscalInfo } from "@/lib/use-fiscal-info";
 import { ApiError, ApiOrder, fetchOrders } from "@/lib/api";
+import { formatDateTime, formatPrice } from "@/lib/format";
 
 export default function HistoryPage() {
   const [orders, setOrders] = useState<ApiOrder[]>([]);
@@ -195,10 +198,262 @@ function HistoryInvoiceModal({
   onClose: () => void;
 }) {
   const { data: fiscal, loading: fiscalLoading } = useFiscalInfo();
+  const { branding } = useBranding();
+  const [printing, setPrinting] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const printRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const totalAmount = Number(selectedOrder?.totalAmount ?? 0);
+  const subtotalAmount = Number(selectedOrder?.subtotal ?? 0);
+  const taxAmount = Number(selectedOrder?.taxAmount ?? 0);
   const fxRate = Number(selectedOrder?.fxRate ?? 0);
   const equivalentUsd = fxRate > 0 ? totalAmount / fxRate : 0;
+
+  const companyName = fiscal?.companyName ?? branding.companyName;
+  const orderDate = selectedOrder?.createdAt
+    ? new Date(selectedOrder.createdAt)
+    : new Date();
+
+  function handlePrint() {
+    if (printing) return;
+    setPrinting(true);
+    const trigger = () => {
+      try {
+        window.print();
+      } finally {
+        setTimeout(() => setPrinting(false), 500);
+      }
+    };
+    if (
+      typeof window !== "undefined" &&
+      typeof window.requestAnimationFrame === "function"
+    ) {
+      window.requestAnimationFrame(trigger);
+    } else {
+      setTimeout(trigger, 16);
+    }
+  }
+
+  // Build the printable receipt as a React portal that we attach
+  // directly to <body>. Same approach as `cart-panel.tsx`: this
+  // bypasses any ancestor CSS rules that would otherwise hide the
+  // receipt when the browser enters print mode.
+  const printPortal =
+    mounted && selectedOrder && typeof document !== "undefined"
+      ? createPortal(
+          <div
+            ref={printRef}
+            className="print-root printable-receipt"
+            aria-hidden="true"
+          >
+            {/* ===== En-tête société ===== */}
+            <div className="rcp-center">
+              <div
+                className="rcp-uppercase rcp-tiny"
+                style={{
+                  color: "#b91c1c",
+                  fontWeight: 700,
+                  letterSpacing: "0.2em",
+                }}
+              >
+                *** DUPLICATA ***
+              </div>
+              <div className="rcp-name">{companyName}</div>
+              <div className="rcp-small">{fiscal?.address ?? ""}</div>
+              {fiscal?.phone ? (
+                <div className="rcp-small">Tél: {fiscal.phone}</div>
+              ) : null}
+              {fiscal?.email ? (
+                <div className="rcp-small">{fiscal.email}</div>
+              ) : null}
+            </div>
+
+            <div className="rcp-dashed" />
+
+            {/* ===== Numéro de ticket (mis en avant) ===== */}
+            {selectedOrder?.orderNumber ? (
+              <div className="rcp-center" style={{ padding: "4px 0" }}>
+                <div
+                  className="rcp-uppercase rcp-tiny rcp-muted"
+                  style={{ letterSpacing: "0.2em" }}
+                >
+                  Ticket N°
+                </div>
+                <div
+                  className="rcp-bold"
+                  style={{ fontSize: "1.4em", marginTop: "2px" }}
+                >
+                  {selectedOrder.orderNumber}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="rcp-dashed" />
+
+            {/* ===== Infos fiscales ===== */}
+            <div className="rcp-line rcp-tiny">
+              <span>ID Nat:</span>
+              <span>{fiscal?.idNat ?? "—"}</span>
+            </div>
+            <div className="rcp-line rcp-tiny">
+              <span>RCCM:</span>
+              <span>{fiscal?.rccm ?? "—"}</span>
+            </div>
+            <div className="rcp-line rcp-tiny">
+              <span>N° Impôt:</span>
+              <span>{fiscal?.taxNumber ?? "—"}</span>
+            </div>
+
+            <div className="rcp-dashed" />
+
+            {/* ===== Infos ticket ===== */}
+            <div className="rcp-line rcp-tiny">
+              <span>Date:</span>
+              <span>{formatDateTime(orderDate)}</span>
+            </div>
+            <div className="rcp-line rcp-tiny">
+              <span>N° Ticket:</span>
+              <span>{selectedOrder?.orderNumber ?? "—"}</span>
+            </div>
+            <div className="rcp-line rcp-tiny">
+              <span>Caissier:</span>
+              <span>{selectedOrder?.cashier?.fullName ?? "—"}</span>
+            </div>
+            <div className="rcp-line rcp-tiny">
+              <span>Code:</span>
+              <span>{selectedOrder?.cashier?.code ?? "—"}</span>
+            </div>
+
+            <div className="rcp-double" />
+
+            {/* ===== Articles (all amounts in FC) ===== */}
+            {selectedOrder?.items?.map((item) => (
+              <div key={item.id} className="rcp-article">
+                <div className="rcp-article-name">
+                  {item.product?.name ?? "Article"}
+                  {item.size ? ` [${item.size.label}]` : ""}
+                </div>
+                <div className="rcp-article-line rcp-tiny">
+                  <span>
+                    {item.quantity} x{" "}
+                    {typeof item.unitPrice === "number"
+                      ? formatPrice(item.unitPrice)
+                      : item.unitPrice}
+                  </span>
+                  <span className="rcp-bold">
+                    {typeof item.lineTotal === "number"
+                      ? formatPrice(item.lineTotal)
+                      : item.lineTotal}
+                  </span>
+                </div>
+              </div>
+            ))}
+
+            <div className="rcp-double" />
+
+            {/* ===== Totaux (en FC) ===== */}
+            <div className="rcp-line rcp-tiny">
+              <span>Sous-total HT</span>
+              <span>
+                {selectedOrder
+                  ? formatPrice(
+                      subtotalAmount > 0
+                        ? subtotalAmount
+                        : totalAmount - taxAmount,
+                    )
+                  : "—"}
+              </span>
+            </div>
+            <div className="rcp-line rcp-tiny">
+              <span>TVA (5%)</span>
+              <span>{formatPrice(taxAmount)}</span>
+            </div>
+
+            <div className="rcp-total">
+              <span className="rcp-bold">TOTAL TTC</span>
+              <span className="rcp-bold">{formatPrice(totalAmount)}</span>
+            </div>
+
+            {/* ===== Date + équivalent USD ===== */}
+            <div className="rcp-dashed" />
+            <div className="rcp-line rcp-tiny">
+              <span>Équivalent USD</span>
+              <span>{fxRate > 0 ? `${equivalentUsd.toFixed(2)} $` : "—"}</span>
+            </div>
+            <div className="rcp-line rcp-tiny">
+              <span>Taux appliqué</span>
+              <span>
+                {fxRate > 0
+                  ? `1 $ = ${fxRate.toLocaleString("fr-FR")} FC`
+                  : "—"}
+              </span>
+            </div>
+            <div className="rcp-line rcp-tiny">
+              <span>Imprimé le</span>
+              <span>{formatDateTime(new Date())}</span>
+            </div>
+
+            <div className="rcp-dashed" />
+
+            <div className="rcp-line">
+              <span className="rcp-bold">Réglé par:</span>
+              <span className="rcp-bold rcp-uppercase">
+                {selectedOrder?.payment?.method ?? "—"}
+              </span>
+            </div>
+            <div className="rcp-line">
+              <span className="rcp-bold">Montant reçu:</span>
+              <span className="rcp-bold">{formatPrice(totalAmount)}</span>
+            </div>
+
+            <div className="rcp-double" />
+
+            {/* ===== Pied de ticket ===== */}
+            <div className="rcp-center rcp-tiny">
+              Nombre d'articles: {selectedOrder?.items?.length ?? 0}
+            </div>
+
+            <div className="rcp-dashed" />
+
+            <div className="rcp-center">
+              <div className="rcp-thanks">*** Merci de votre visite ***</div>
+              <div className="rcp-tiny rcp-muted">À bientôt !</div>
+            </div>
+
+            <div className="rcp-perforation" />
+
+            <div className="rcp-center rcp-tiny rcp-muted">
+              Conservez votre ticket
+            </div>
+
+            <div className="rcp-double" />
+
+            {/* ===== Bloc promo JOAC LOUNGE ===== */}
+            <div
+              className="rcp-center"
+              style={{ padding: "6px 0 2px", lineHeight: 1.4 }}
+            >
+              <div
+                className="rcp-bold rcp-uppercase"
+                style={{ fontSize: "1.15em", letterSpacing: "0.15em" }}
+              >
+                JOAC LOUNGE
+              </div>
+              <div className="rcp-tiny" style={{ marginTop: "4px" }}>
+                vivez l'experrience autrement
+              </div>
+              <div className="rcp-tiny rcp-muted" style={{ marginTop: "2px" }}>
+                Suivez nous sur Facebook et instagram @joac-lounge
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )
+      : null;
 
   return (
     <Dialog
@@ -233,7 +488,25 @@ function HistoryInvoiceModal({
             <p className="text-[0.75rem]">Email: {fiscal?.email}</p>
           </div>
 
-          <div className="rounded-3xl bg-white p-3">
+          {/* ===== Numéro de ticket (mis en avant, comme dans cart-panel) ===== */}
+          {selectedOrder?.orderNumber ? (
+            <div className="mt-3 rounded-3xl border border-dashed border-zinc-200 bg-white p-3 text-center">
+              <div
+                className="text-[0.65rem] uppercase tracking-[0.2em] text-zinc-500"
+                style={{ letterSpacing: "0.2em" }}
+              >
+                Ticket N°
+              </div>
+              <div
+                className="font-bold text-zinc-900"
+                style={{ fontSize: "1.5em", marginTop: "4px" }}
+              >
+                {selectedOrder.orderNumber}
+              </div>
+            </div>
+          ) : null}
+
+          <div className="mt-3 rounded-3xl bg-white p-3">
             <div className="flex justify-between text-[0.7rem] uppercase tracking-[0.15em] text-zinc-500">
               <span>ID Nat</span>
               <span>{fiscal?.idNat ?? "—"}</span>
@@ -248,7 +521,7 @@ function HistoryInvoiceModal({
             </div>
           </div>
 
-          <div className="rounded-3xl bg-white p-3">
+          <div className="mt-3 rounded-3xl bg-white p-3">
             <div className="flex justify-between text-[0.7rem] uppercase tracking-[0.15em] text-zinc-500">
               <span>Vendeur</span>
               <span>{selectedOrder?.cashier?.fullName ?? "—"}</span>
@@ -266,16 +539,12 @@ function HistoryInvoiceModal({
               </span>
             </div>
             <div className="flex justify-between text-[0.7rem] uppercase tracking-[0.15em] text-zinc-500">
-              <span>Num</span>
-              <span>{selectedOrder?.orderNumber ?? "—"}</span>
-            </div>
-            <div className="flex justify-between text-[0.7rem] uppercase tracking-[0.15em] text-zinc-500">
               <span>Type</span>
               <span>Personne Physique</span>
             </div>
           </div>
 
-          <div className="rounded-3xl bg-white p-3">
+          <div className="mt-3 rounded-3xl bg-white p-3">
             <div className="flex items-center justify-between border-b border-dashed border-zinc-300 pb-2 text-[0.75rem] font-semibold uppercase tracking-[0.15em] text-zinc-700">
               <span className="w-1/2">Article</span>
               <span className="w-14 text-right">Qté</span>
@@ -309,7 +578,7 @@ function HistoryInvoiceModal({
             </div>
           </div>
 
-          <div className="rounded-3xl bg-white p-3 text-[0.75rem] text-zinc-700">
+          <div className="mt-3 rounded-3xl bg-white p-3 text-[0.75rem] text-zinc-700">
             <div className="flex justify-between border-b border-dashed border-zinc-300 py-1">
               <span>Total TTC</span>
               <span className="font-semibold text-zinc-900">
@@ -338,14 +607,53 @@ function HistoryInvoiceModal({
               </span>
             </div>
           </div>
+
+          {/* ===== Bloc promo JOAC LOUNGE (en bas de la facture) ===== */}
+          <div
+            className="mt-3 rounded-3xl border border-dashed border-zinc-200 bg-white p-3 text-center"
+            style={{ lineHeight: 1.4 }}
+          >
+            <div
+              className="font-bold uppercase text-zinc-900"
+              style={{ fontSize: "1em", letterSpacing: "0.15em" }}
+            >
+              JOAC LOUNGE
+            </div>
+            <div
+              className="text-[0.7rem] text-zinc-600"
+              style={{ marginTop: "4px" }}
+            >
+              vivez l'experrience autrement
+            </div>
+            <div
+              className="text-[0.7rem] text-zinc-500"
+              style={{ marginTop: "2px" }}
+            >
+              Suivez nous sur Facebook et instagram @joac-lounge
+            </div>
+          </div>
         </div>
 
         <DialogFooter className="mt-4 gap-2">
           <Button variant="outline" onClick={onClose}>
             Fermer
           </Button>
+          {selectedOrder ? (
+            <Button
+              onClick={handlePrint}
+              disabled={printing}
+              className="min-w-32"
+              variant="default"
+            >
+              <Printer className="mr-2 h-4 w-4" />
+              Imprimer
+            </Button>
+          ) : null}
         </DialogFooter>
       </DialogContent>
+
+      {/* Printable receipt portal — see printPortal above */}
+      {printPortal}
     </Dialog>
   );
 }
