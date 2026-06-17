@@ -217,11 +217,19 @@ export function PosApp() {
       {/* Mobile cart sheet — opens on top of everything.
           The close (X) button is now rendered inside the CartPanel
           header (left side) — not absolutely positioned — so it
-          never overlaps the "Vider" button on tiny screens. */}
+          never overlaps the "Vider" button on tiny screens.
+
+          On phone we want full width (no margins), on tablet (sm+)
+          we cap at `sm:max-w-md` (28rem) and the dialog stays
+          centered via the default `left-1/2 -translate-x-1/2` rules
+          from `DialogContent` — that's why we use `w-full` instead
+          of `w-screen max-w-none` here (the latter was breaking
+          the centering on tablet and pushing the modal off the
+          right edge of the viewport). */}
       <Dialog open={cartSheetOpen} onOpenChange={setCartSheetOpen}>
         <DialogContent
           showCloseButton={false}
-          className="h-[100dvh] max-h-[100dvh] w-screen max-w-none gap-0 overflow-hidden rounded-none border-0 p-0 sm:max-w-md sm:rounded-3xl sm:border sm:h-[90vh] sm:max-h-[90vh]"
+          className="h-[100dvh] max-h-[100dvh] w-full max-w-screen gap-0 overflow-hidden rounded-none border-0 p-0 sm:max-w-md sm:rounded-3xl sm:border sm:h-[90vh] sm:max-h-[90vh]"
         >
           <DialogHeader className="sr-only">
             <DialogTitle>Panier</DialogTitle>
