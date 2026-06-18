@@ -450,8 +450,8 @@ export default function CategoriesPage() {
         open={dialogOpen}
         onOpenChange={(open) => (open ? setDialogOpen(true) : closeDialog())}
       >
-        <DialogContent className="max-w-md p-6">
-          <DialogHeader>
+        <DialogContent className="flex h-[90dvh] max-h-[90dvh] w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden rounded-3xl p-0 sm:h-auto sm:max-h-[90vh] sm:max-w-md">
+          <DialogHeader className="shrink-0 p-6 pb-4">
             <DialogTitle>
               {editingId !== null
                 ? "Modifier la catégorie"
@@ -463,7 +463,7 @@ export default function CategoriesPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <form className="grid gap-4" onSubmit={handleSubmit}>
+          <form className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-2" onSubmit={handleSubmit}>
             <div className="space-y-2">
               <label
                 htmlFor="category-label"
@@ -528,10 +528,22 @@ export default function CategoriesPage() {
               </div>
             ) : null}
 
+          </form>
+
+          <DialogFooter className="shrink-0 flex flex-col-reverse gap-2 border-t border-border bg-muted/30 p-4 sm:flex-row sm:justify-end sm:gap-2 sm:border-0 sm:bg-transparent sm:p-6">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={closeDialog}
+              disabled={saving}
+              className="sm:order-1"
+            >
+              Annuler
+            </Button>
             <Button
               type="submit"
-              className="w-full justify-center"
               disabled={saving}
+              className="sm:order-2"
             >
               {saving ? (
                 <span className="inline-flex items-center gap-2">
@@ -543,17 +555,6 @@ export default function CategoriesPage() {
               ) : (
                 "Créer la catégorie"
               )}
-            </Button>
-          </form>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={closeDialog}
-              disabled={saving}
-            >
-              Annuler
             </Button>
           </DialogFooter>
         </DialogContent>
