@@ -110,8 +110,8 @@ export function BrandingDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-3xl sm:max-w-lg">
-        <DialogHeader>
+      <DialogContent className="flex h-[90dvh] max-h-[90dvh] w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden rounded-3xl sm:h-auto sm:max-h-[90vh] sm:max-w-lg">
+        <DialogHeader className="shrink-0 border-b border-border pb-3">
           <DialogTitle>Paramètres de la société</DialogTitle>
           <DialogDescription>
             Personnalisez le POS pour votre entreprise. Les couleurs sont
@@ -120,7 +120,7 @@ export function BrandingDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5 py-2 max-h-[70vh] overflow-y-auto pr-1">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-1 py-4 pr-2">
           {/* Live preview */}
           <div className="glass flex items-center gap-3 rounded-2xl p-4">
             <div className="flex items-center justify-center">
@@ -392,7 +392,7 @@ export function BrandingDialog({
           </div>
         </div>
 
-        <DialogFooter className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <DialogFooter className="shrink-0 mt-0 flex flex-col gap-2 border-t border-border pt-3 sm:flex-row sm:items-center sm:justify-between sm:border-0 sm:pt-0">
           <Button
             type="button"
             variant="ghost"
