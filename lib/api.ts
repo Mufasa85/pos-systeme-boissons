@@ -672,3 +672,15 @@ export async function fetchProducts(
   }
   return data as ApiPaginated<ApiProduct>;
 }
+
+
+/**
+ * Generic image upload - posts a File to /api/uploads/image`n * and returns the public URL the backend assigns to it. Used
+ * for product photos, user avatars, branding logos, etc.
+ */
+export async function uploadImage(
+  file: File,
+  onProgress?: (percent: number) => void,
+): Promise<ApiUploadResult> {
+  return uploadProductImage(file, onProgress);
+}
