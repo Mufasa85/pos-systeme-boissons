@@ -528,7 +528,7 @@ export default function StockPage() {
         open={dialogOpen}
         onOpenChange={(open) => (open ? setDialogOpen(true) : closeDialog())}
       >
-        <DialogContent className="flex max-h-[100dvh] w-screen max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 p-0 sm:max-h-[calc(100vh-1rem)] sm:max-w-3xl sm:rounded-3xl sm:border sm:shadow-lg">
+        <DialogContent className="flex h-[90dvh] max-h-[90dvh] w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden rounded-3xl border shadow-lg p-0 sm:h-auto sm:max-h-[calc(100vh-1rem)] sm:max-w-3xl">
           <DialogHeader className="shrink-0 border-b border-border px-5 py-4">
             <DialogTitle>
               {editingId !== null ? "Modifier le produit" : "Nouveau produit"}
