@@ -9,6 +9,24 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { hasCapability, ROLE_LABELS } from "@/lib/permissions";
 
+function resolveAvatarUrl(path: string | null | undefined): string {
+  if (!path) return "/cashier-avatar.png";
+  if (/^https?:\/\//i.test(path)) return path;
+  const base =
+    (typeof process !== "undefined" &&
+      process.env.NEXT_PUBLIC_API_BASE_URL) ||
+    "";
+  if (!base) return path;
+  if (path.startsWith("/")) {
+    try {
+      return new URL(base).origin + path;
+    } catch {
+      return path;
+    }
+  }
+  return `${base.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
+}
+
 export function Topbar({
   query,
   onQueryChange,
@@ -32,6 +50,7 @@ export function Topbar({
     : "—";
 
   const roleLabel = cashier ? (ROLE_LABELS[cashier.role] ?? cashier.role) : "";
+  const avatarUrl = resolveAvatarUrl(cashier?.avatarUrl);
 
   // The settings button opens the Branding dialog, which is
   // admin-only. Render it conditionally so non-admins don't
@@ -102,7 +121,7 @@ export function Topbar({
       <div className="flex items-center gap-3 pl-1 pr-1">
         <Avatar className="h-10 w-10 border border-border">
           <AvatarImage
-            src={cashier?.avatarUrl ?? "/cashier-avatar.png"}
+            src={avatarUrl}
             alt={cashier?.fullName ?? "Caissier"}
           />
           <AvatarFallback className="brand-soft text-sm font-semibold">
