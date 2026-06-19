@@ -8,14 +8,14 @@
 
 export const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "") ||
-  "https://joac.cd";
+  "https://joac-nine.vercel.app";
 
 export const SITE_NAME = "JOAC";
 export const SITE_SHORT_NAME = "JOAC POS";
 export const SITE_DESCRIPTION =
-  "JOAC — système de point de vente moderne pour boissons, avec gestion du stock, des ventes, des caissiers et facturation FC / USD. Conçu à Kinshasa.";
+  "JOAC POS — application de caisse moderne pour lounge bar : ventes, commandes, stock, caissiers, rapports et facturation FC / USD en temps réel.";
 export const SITE_DESCRIPTION_EN =
-  "A modern, glassmorphism beverage point-of-sale system with dynamic branding, cart, discounts, tax and sales analytics.";
+  "A modern lounge bar point-of-sale app for sales, orders, inventory, cashiers, reporting and FC / USD billing in real time.";
 export const SITE_LOCALE = "fr_CD";
 export const SITE_LANGUAGE = "fr-CD";
 
@@ -101,5 +101,5 @@ export function absoluteUrl(path = "/"): string {
  * image can be themed (colors, locale) without committing a
  * binary asset to the repo.
  */
-export const OG_IMAGE_PATH = "/opengraph-image";
-export const TWITTER_IMAGE_PATH = "/twitter-image";
+export const OG_IMAGE_PATH = "/logo_ass_N-clair.png";
+export const TWITTER_IMAGE_PATH = "/logo_ass_N-clair.png";

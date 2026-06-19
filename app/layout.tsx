@@ -59,7 +59,7 @@ export const metadata: Metadata = {
   // -------------------------------------------------------------------- //
   metadataBase: new URL(SITE_URL),
   title: {
-    default: `${SITE_NAME} — Point de vente moderne pour boissons`,
+    default: `${SITE_NAME} POS — Caisse moderne pour lounge bar`,
     template: `%s · ${SITE_NAME}`,
   },
   applicationName: SITE_SHORT_NAME,
@@ -115,24 +115,10 @@ export const metadata: Metadata = {
   // -------------------------------------------------------------------- //
   icons: {
     icon: [
-      { url: "/icon", type: "image/svg+xml", sizes: "any" },
-      {
-        url: "/icon-light-32x32.png",
-        type: "image/png",
-        sizes: "32x32",
-        media: "(prefers-color-scheme: light)",
-      },
-      {
-        url: "/icon-dark-32x32.png",
-        type: "image/png",
-        sizes: "32x32",
-        media: "(prefers-color-scheme: dark)",
-      },
-      { url: "/icon-16x16.png", type: "image/png", sizes: "16x16" },
-      { url: "/icon-32x32.png", type: "image/png", sizes: "32x32" },
+      { url: "/logo_ass_N-clair.png", type: "image/png", sizes: "any" },
     ],
-    shortcut: ["/favicon.ico"],
-    apple: [{ url: "/apple-icon", sizes: "180x180", type: "image/png" }],
+    shortcut: ["/logo_ass_N-clair.png"],
+    apple: [{ url: "/logo_ass_N-clair.png", type: "image/png" }],
     other: [
       {
         rel: "mask-icon",
@@ -165,7 +151,7 @@ export const metadata: Metadata = {
     locale: SITE_LOCALE,
     url: absoluteUrl("/"),
     siteName: SITE_NAME,
-    title: `${SITE_NAME} — Point de vente moderne pour boissons`,
+    title: `${SITE_NAME} POS — Caisse moderne pour lounge bar`,
     description: SITE_DESCRIPTION,
     emails: [ORGANIZATION.email],
     phoneNumbers: [ORGANIZATION.phone],
@@ -177,7 +163,7 @@ export const metadata: Metadata = {
       {
         url: absoluteUrl("/logo_ass_N-clair.png"),
         secureUrl: absoluteUrl("/logo_ass_N-clair.png"),
-        alt: `${SITE_NAME} — Point de vente moderne pour boissons`,
+        alt: `${SITE_NAME} POS — Caisse moderne pour lounge bar`,
         width: 1200,
         height: 630,
         type: "image/png",
@@ -203,12 +189,12 @@ export const metadata: Metadata = {
     siteId: undefined,
     creator: SOCIAL.twitter,
     creatorId: undefined,
-    title: `${SITE_NAME} — Point de vente moderne pour boissons`,
+    title: `${SITE_NAME} POS — Caisse moderne pour lounge bar`,
     description: SITE_DESCRIPTION,
     images: [
       {
-        url: absoluteUrl("/twitter-image"),
-        alt: `${SITE_NAME} — Point de vente moderne pour boissons`,
+        url: absoluteUrl("/logo_ass_N-clair.png"),
+        alt: `${SITE_NAME} POS — Caisse moderne pour lounge bar`,
         width: 1200,
         height: 675,
         type: "image/png",

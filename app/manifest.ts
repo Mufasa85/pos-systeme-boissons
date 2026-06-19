@@ -11,10 +11,10 @@ import { BRAND_COLORS, SITE_NAME, SITE_SHORT_NAME, absoluteUrl } from "@/lib/sit
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: `${SITE_NAME} — Point de vente moderne pour boissons`,
+    name: `${SITE_NAME} POS — Caisse moderne pour lounge bar`,
     short_name: SITE_SHORT_NAME,
     description:
-      "JOAC — système de point de vente moderne pour boissons, avec gestion du stock, des ventes, des caissiers et facturation FC / USD. Conçu à Kinshasa.",
+      "JOAC POS — application de caisse moderne pour lounge bar : ventes, commandes, stock, caissiers, rapports et facturation FC / USD en temps réel.",
     start_url: "/",
     scope: "/",
     display: "standalone",
@@ -44,38 +44,14 @@ export default function manifest(): MetadataRoute.Manifest {
     ],
     icons: [
       {
-        src: absoluteUrl("/icon"),
+        src: absoluteUrl("/logo_ass_N-clair.png"),
         sizes: "any",
-        type: "image/svg+xml",
+        type: "image/png",
         purpose: "any",
       },
       {
-        src: absoluteUrl("/icon"),
+        src: absoluteUrl("/logo_ass_N-clair.png"),
         sizes: "any",
-        type: "image/svg+xml",
-        purpose: "maskable",
-      },
-      {
-        src: absoluteUrl("/icon-192x192.png"),
-        sizes: "192x192",
-        type: "image/png",
-        purpose: "any",
-      },
-      {
-        src: absoluteUrl("/icon-192x192.png"),
-        sizes: "192x192",
-        type: "image/png",
-        purpose: "maskable",
-      },
-      {
-        src: absoluteUrl("/icon-512x512.png"),
-        sizes: "512x512",
-        type: "image/png",
-        purpose: "any",
-      },
-      {
-        src: absoluteUrl("/icon-512x512.png"),
-        sizes: "512x512",
         type: "image/png",
         purpose: "maskable",
       },
