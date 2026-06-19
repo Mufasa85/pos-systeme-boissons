@@ -101,7 +101,7 @@ export function Sidebar({
           "lg:static lg:translate-x-0 lg:w-64 lg:max-w-none lg:flex lg:transition-none",
         )}
       >
-        <div className="glass flex h-full flex-col rounded-3xl p-5">
+        <div className="glass flex h-full min-h-0 flex-col overflow-y-auto rounded-3xl p-5">
           {/* Logo + close (mobile) */}
           <div className="flex items-center justify-between gap-3 px-1">
             <div className="flex min-w-0 items-center gap-3">
