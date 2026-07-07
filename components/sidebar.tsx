@@ -23,7 +23,26 @@ import {
   NAV_PATHS,
   type NavKey,
 } from "@/lib/permissions";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+
+function resolveAvatarUrl(path: string | null | undefined): string {
+  if (!path) return "/cashier-avatar.png";
+  if (/^https?:\/\//i.test(path)) return path;
+  const base =
+    (typeof process !== "undefined" &&
+      process.env.NEXT_PUBLIC_API_BASE_URL) ||
+    "";
+  if (!base) return path;
+  if (path.startsWith("/")) {
+    try {
+      return new URL(base).origin + path;
+    } catch {
+      return path;
+    }
+  }
+  return `${base.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
+}
 
 // All possible nav entries. We filter this list against the
 // logged-in cashier's role at render time so a manager or a
@@ -172,9 +191,15 @@ export function Sidebar({
             </button>
             {cashier ? (
               <div className="mt-2 flex items-center gap-3 rounded-2xl bg-muted/40 px-3 py-2.5">
-                <div className="brand-bg flex h-8 w-8 items-center justify-center rounded-xl text-xs font-bold">
-                  {cashier.fullName.charAt(0).toUpperCase()}
-                </div>
+                <Avatar className="h-8 w-8 border border-border">
+                  <AvatarImage
+                    src={resolveAvatarUrl(cashier.avatarUrl)}
+                    alt={cashier.fullName}
+                  />
+                  <AvatarFallback className="brand-bg text-xs font-bold text-brand-foreground">
+                    {cashier.fullName.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-semibold">
                     {cashier.fullName}
