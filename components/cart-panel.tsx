@@ -342,7 +342,7 @@ export function CartPanel({
                   {item.drink.name}
                   {item.size ? ` ${item.size}` : ""}
                 </div>
-                <div className="rcp-article-line rcp-tiny">
+                <div className="rcp-article-line rcp-small">
                   <span>
                     {item.quantity} x {formatPrice(item.drink.price)}
                   </span>
@@ -356,7 +356,7 @@ export function CartPanel({
             <div className="rcp-double" />
 
             {/* ===== Totaux (en FC) ===== */}
-            <div className="rcp-line rcp-tiny">
+            <div className="rcp-line rcp-small">
               <span>Sous-total HT</span>
               <span>
                 {paidOrder
@@ -369,7 +369,7 @@ export function CartPanel({
                     )}
               </span>
             </div>
-            <div className="rcp-line rcp-tiny">
+            <div className="rcp-line rcp-small">
               <span>TVA (5%)</span>
               <span>
                 {paidOrder
