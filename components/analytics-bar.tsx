@@ -52,7 +52,7 @@ export function AnalyticsBar() {
         icon={DollarSign}
         label="Ventes aujourd'hui"
         value={
-          data ? formatCurrency(data.todaySales, "USD") : loading ? "…" : "0 $"
+          data ? formatCurrency(data.todaySales, "CDF") : loading ? "…" : "0 FC"
         }
         delta={pct}
         loading={loading}
@@ -97,7 +97,7 @@ export function AnalyticsBar() {
         )}
         <p className="mt-1 text-[10px] text-muted-foreground">
           {totalsForSpark.length > 0
-            ? `Max ${formatCurrency(Math.max(...totalsForSpark), "USD")}`
+            ? `Max ${formatCurrency(Math.max(...totalsForSpark), "CDF")}`
             : "—"}
         </p>
       </div>
