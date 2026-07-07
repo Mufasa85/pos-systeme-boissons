@@ -1,6 +1,15 @@
 "use client";
 
-import { Bell, Menu, Search, Settings, SlidersHorizontal } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  Bell,
+  Maximize2,
+  Menu,
+  Minimize2,
+  Search,
+  Settings,
+  SlidersHorizontal,
+} from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 import { useBranding } from "@/components/branding-provider";
 import { useMobileSidebar } from "@/components/mobile-sidebar";
@@ -39,6 +48,29 @@ export function Topbar({
   const { branding } = useBranding();
   const { cashier } = useAuth();
   const { toggle: toggleSidebar } = useMobileSidebar();
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    function handleFullscreenChange() {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    }
+
+    handleFullscreenChange();
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
+
+  function toggleFullscreen() {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen();
+      return;
+    }
+
+    void document.documentElement.requestFullscreen();
+  }
 
   const initials = cashier
     ? cashier.fullName
@@ -95,6 +127,21 @@ export function Topbar({
       >
         <SlidersHorizontal className="h-4 w-4" />
         Filtres
+      </Button>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={toggleFullscreen}
+        className="hidden h-11 w-11 rounded-2xl bg-muted/60 sm:inline-flex"
+        aria-label={isFullscreen ? "Quitter le plein écran" : "Passer en plein écran"}
+        title={isFullscreen ? "Quitter le plein écran" : "Passer en plein écran"}
+      >
+        {isFullscreen ? (
+          <Minimize2 className="h-4 w-4" />
+        ) : (
+          <Maximize2 className="h-4 w-4" />
+        )}
       </Button>
 
       <Button
