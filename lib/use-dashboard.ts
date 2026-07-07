@@ -97,7 +97,7 @@ export function useDashboardSummary(
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 
   useEffect(() => {
-    aliveRef.current = true;
+    let cancelled = false;
     const ac = new AbortController();
     setLoading(true);
     setError(null);
@@ -107,18 +107,21 @@ export function useDashboardSummary(
       signal: ac.signal,
     })
       .then((payload) => {
-        if (!aliveRef.current) return;
+        if (cancelled) return;
         setData(payload);
         setLoading(false);
       })
       .catch((err: unknown) => {
-        if (!aliveRef.current) return;
-        if (err instanceof DOMException && err.name === "AbortError") return;
+        if (cancelled) return;
+        if (err instanceof DOMException && err.name === "AbortError") {
+          setLoading(false);
+          return;
+        }
         setError(err instanceof ApiError ? err.message : String(err));
         setLoading(false);
       });
     return () => {
-      aliveRef.current = false;
+      cancelled = true;
       ac.abort();
     };
   }, [nonce]);
@@ -156,7 +159,7 @@ export function useRecentActivity(
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 
   useEffect(() => {
-    aliveRef.current = true;
+    let cancelled = false;
     const ac = new AbortController();
     setLoading(true);
     setError(null);
@@ -166,18 +169,21 @@ export function useRecentActivity(
       signal: ac.signal,
     })
       .then((payload) => {
-        if (!aliveRef.current) return;
+        if (cancelled) return;
         setData(Array.isArray(payload) ? payload : []);
         setLoading(false);
       })
       .catch((err: unknown) => {
-        if (!aliveRef.current) return;
-        if (err instanceof DOMException && err.name === "AbortError") return;
+        if (cancelled) return;
+        if (err instanceof DOMException && err.name === "AbortError") {
+          setLoading(false);
+          return;
+        }
         setError(err instanceof ApiError ? err.message : String(err));
         setLoading(false);
       });
     return () => {
-      aliveRef.current = false;
+      cancelled = true;
       ac.abort();
     };
   }, [nonce, limit]);
@@ -222,7 +228,7 @@ export function useReportBreakdown(
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 
   useEffect(() => {
-    aliveRef.current = true;
+    let cancelled = false;
     const ac = new AbortController();
     setLoading(true);
     setError(null);
@@ -241,19 +247,22 @@ export function useReportBreakdown(
       signal: ac.signal,
     })
       .then((orders) => {
-        if (!aliveRef.current) return;
+        if (cancelled) return;
         setData(buildBreakdown(orders ?? []));
         setLoading(false);
       })
       .catch((err: unknown) => {
-        if (!aliveRef.current) return;
-        if (err instanceof DOMException && err.name === "AbortError") return;
+        if (cancelled) return;
+        if (err instanceof DOMException && err.name === "AbortError") {
+          setLoading(false);
+          return;
+        }
         setError(err instanceof ApiError ? err.message : String(err));
         setLoading(false);
       });
 
     return () => {
-      aliveRef.current = false;
+      cancelled = true;
       ac.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
