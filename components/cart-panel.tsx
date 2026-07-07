@@ -266,6 +266,7 @@ export function CartPanel({
               </div>
               <div className="rcp-name">{companyName}</div>
               <div className="rcp-small">{fiscal?.address ?? ""}</div>
+              <div className="rcp-small">KINSHASA - RDC</div>
               {fiscal?.phone ? (
                 <div className="rcp-small">Tél: {fiscal.phone}</div>
               ) : null}
@@ -357,24 +358,11 @@ export function CartPanel({
 
             {/* ===== Totaux (en FC) ===== */}
             <div className="rcp-line rcp-small">
-              <span>Sous-total HT</span>
+              <span>Sous-total</span>
               <span>
                 {paidOrder
-                  ? formatPrice(
-                      Number(paidOrder.totalAmount) -
-                        Number(paidOrder.taxAmount || 0),
-                    )
-                  : formatPrice(
-                      dialogTotal - dialogTotal * (TAX_RATE / (1 + TAX_RATE)),
-                    )}
-              </span>
-            </div>
-            <div className="rcp-line rcp-small">
-              <span>TVA (5%)</span>
-              <span>
-                {paidOrder
-                  ? formatPrice(Number(paidOrder.taxAmount || 0))
-                  : formatPrice(dialogTotal * (TAX_RATE / (1 + TAX_RATE)))}
+                  ? formatPrice(Number(paidOrder.totalAmount))
+                  : formatPrice(dialogTotal)}
               </span>
             </div>
 
