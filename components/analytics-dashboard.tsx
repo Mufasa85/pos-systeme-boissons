@@ -96,8 +96,8 @@ export function AnalyticsDashboard() {
         <HeadlineKpi
           icon={DollarSign}
           label="Chiffre d'affaires (7j)"
-          value={formatCurrencyCompact(totalSales, "USD")}
-          sub={`${formatCurrency(totalSales, "USD")} au total`}
+          value={formatCurrencyCompact(totalSales, "CDF")}
+          sub={`${formatCurrency(totalSales, "CDF")} au total`}
           delta={pctChange(totalByDay)}
           accent
           loading={loading}
@@ -113,7 +113,7 @@ export function AnalyticsDashboard() {
         <HeadlineKpi
           icon={Receipt}
           label="Panier moyen"
-          value={formatCurrency(avgTicket, "USD")}
+          value={formatCurrency(avgTicket, "CDF")}
           sub="par commande payée"
           loading={loading}
         />
@@ -123,7 +123,7 @@ export function AnalyticsDashboard() {
           value={topProducts[0]?.name ?? "—"}
           sub={
             topProducts[0]
-              ? `${formatNumber(topProducts[0].totalSold)} vendus · ${formatCurrency(topProducts[0].revenue, "USD")}`
+              ? `${formatNumber(topProducts[0].totalSold)} vendus · ${formatCurrency(topProducts[0].revenue, "CDF")}`
               : "Aucune vente"
           }
           loading={loading}
@@ -136,7 +136,7 @@ export function AnalyticsDashboard() {
           <CardHeader
             icon={BarChart3}
             title="Évolution des ventes"
-            subtitle="7 derniers jours · USD"
+            subtitle="7 derniers jours · CDF"
           />
           {error ? (
             <ErrorPanel message={error} onRetry={reload} />
@@ -159,7 +159,7 @@ export function AnalyticsDashboard() {
                     color: "#A855F7",
                   },
                 ]}
-                formatValue={(v) => formatCurrencyCompact(v, "USD")}
+                formatValue={(v) => formatCurrencyCompact(v, "CDF")}
                 showLegend
               />
             </div>
@@ -174,7 +174,7 @@ export function AnalyticsDashboard() {
                   {formatDayShort(d.day)}
                 </p>
                 <p className="text-sm font-bold tabular-nums">
-                  {formatCurrency(toNumber(d.total), "USD")}
+                  {formatCurrency(toNumber(d.total), "CDF")}
                 </p>
                 <p className="text-[10px] text-muted-foreground tabular-nums">
                   {formatNumber(d.ordersCount)} cmd
@@ -210,7 +210,7 @@ export function AnalyticsDashboard() {
                 secondaryValue: p.totalSold,
                 secondaryLabel: `${formatNumber(p.totalSold)} vendus`,
               }))}
-              formatValue={(n) => formatCurrencyCompact(n, "USD")}
+              formatValue={(n) => formatCurrencyCompact(n, "CDF")}
               compact
             />
           </div>
@@ -271,7 +271,7 @@ export function AnalyticsDashboard() {
                   </div>
                   {log.amount != null ? (
                     <span className="shrink-0 text-sm font-bold tabular-nums">
-                      {formatCurrency(toNumber(log.amount), "USD")}
+                      {formatCurrency(toNumber(log.amount), "CDF")}
                     </span>
                   ) : null}
                 </li>
