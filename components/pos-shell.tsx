@@ -1,15 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { BrandingProvider } from "@/components/branding-provider";
 import { BrandingDialog } from "@/components/branding-dialog";
 import { Sidebar } from "@/components/sidebar";
 import { Topbar } from "@/components/topbar";
+import { NAV_PATHS, type NavKey } from "@/lib/permissions";
 
 export function PosShell({
   active,
   title,
-  queryPlaceholder = "Search...",
   children,
 }: {
   active: string;
@@ -17,8 +18,8 @@ export function PosShell({
   queryPlaceholder?: string;
   children: React.ReactNode;
 }) {
+  const router = useRouter();
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [query, setQuery] = useState("");
 
   return (
@@ -27,23 +28,9 @@ export function PosShell({
         <Sidebar
           active={active}
           onChange={(id) => {
-            const nextPath =
-              id === "pos"
-                ? "/"
-                : id === "dashboard"
-                  ? "/dashboard"
-                  : id === "menu"
-                    ? "/menu"
-                    : id === "stock"
-                      ? "/stock"
-                      : id === "categories"
-                        ? "/categories"
-                        : id === "users"
-                          ? "/users"
-                          : id === "reports"
-                            ? "/reports"
-                            : "/history";
-            window.location.href = nextPath;
+            if (id in NAV_PATHS) {
+              router.push(NAV_PATHS[id as NavKey]);
+            }
           }}
           onOpenSettings={() => setSettingsOpen(true)}
         />
@@ -53,7 +40,6 @@ export function PosShell({
             query={query}
             onQueryChange={setQuery}
             onOpenSettings={() => setSettingsOpen(true)}
-            onOpenSidebarMobile={() => setSidebarOpen(true)}
           />
 
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
