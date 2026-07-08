@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 /* -------------------------------------------------------------------------- */
@@ -24,6 +24,8 @@ export interface LineChartSeries {
   color?: string;
   /** Whether to fill the area under the curve. */
   fill?: boolean;
+  /** Optional formatter for this series tooltip values. */
+  formatValue?: (n: number) => string;
 }
 
 export interface LineChartProps {
@@ -74,10 +76,33 @@ export function LineChart({
   className,
 }: LineChartProps) {
   const gradSeed = useId();
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [size, setSize] = useState({ width, height });
   const [hover, setHover] = useState<{
     index: number;
     seriesId?: string;
   } | null>(null);
+
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+
+    const update = () => {
+      const rect = el.getBoundingClientRect();
+      setSize({
+        width: Math.max(1, Math.round(rect.width)),
+        height: Math.max(1, Math.round(rect.height)),
+      });
+    };
+
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const chartWidth = size.width || width;
+  const chartHeight = size.height || height;
 
   // Normalise into `series` shape.
   const seriesData = useMemo<LineChartSeries[]>(() => {
@@ -117,8 +142,8 @@ export function LineChart({
   const padBottom = 32;
   const padLeft = 44;
   const padRight = 12;
-  const innerW = width - padLeft - padRight;
-  const innerH = height - padTop - padBottom;
+  const innerW = chartWidth - padLeft - padRight;
+  const innerH = chartHeight - padTop - padBottom;
 
   const xFor = (i: number) => {
     if (pointCount <= 1) return padLeft + innerW / 2;
@@ -134,12 +159,18 @@ export function LineChart({
     [finalYMin, finalYMax],
   );
 
+  const showLegendArea = showLegend && seriesData.length > 1;
+
   return (
-    <div className={cn("w-full", className)}>
+    <div className={cn("h-full w-full", className)}>
       <svg
-        viewBox={`0 0 ${width} ${height}`}
+        ref={svgRef}
+        viewBox={`0 0 ${chartWidth} ${chartHeight}`}
         preserveAspectRatio="xMidYMid meet"
-        className="h-full w-full"
+        className="w-full"
+        style={{
+          height: showLegendArea ? "calc(100% - 2rem)" : "100%",
+        }}
         role="img"
       >
         <defs>
@@ -172,7 +203,7 @@ export function LineChart({
               <g key={`grid-${t}`}>
                 <line
                   x1={padLeft}
-                  x2={width - padRight}
+                  x2={chartWidth - padRight}
                   y1={yFor(t)}
                   y2={yFor(t)}
                   stroke="currentColor"
@@ -202,7 +233,7 @@ export function LineChart({
             <text
               key={`x-${i}`}
               x={xFor(i)}
-              y={height - padBottom + 16}
+              y={chartHeight - padBottom + 16}
               textAnchor="middle"
               className="fill-muted-foreground"
               style={{ fontSize: 10 }}
@@ -296,8 +327,8 @@ export function LineChart({
         <div
           className="glass-strong pointer-events-none absolute -translate-x-1/2 -translate-y-full rounded-xl px-3 py-2 text-xs shadow-xl"
           style={{
-            left: `${(xFor(hover.index) / width) * 100}%`,
-            top: `${(Math.min(...seriesData.map((s) => yFor(s.values[hover.index] ?? 0))) / height) * 100}%`,
+            left: `${(xFor(hover.index) / chartWidth) * 100}%`,
+            top: `${(Math.min(...seriesData.map((s) => yFor(s.values[hover.index] ?? 0))) / chartHeight) * 100}%`,
             transform: "translate(-50%, calc(-100% - 8px))",
           }}
         >
@@ -311,7 +342,7 @@ export function LineChart({
                 />
                 <span className="text-muted-foreground">{s.name}:</span>
                 <span className="font-semibold">
-                  {formatValue(s.values[hover.index] ?? 0)}
+                  {(s.formatValue ?? formatValue)(s.values[hover.index] ?? 0)}
                 </span>
               </div>
             ))}
