@@ -89,7 +89,7 @@ export default function ReportsPage() {
           <KpiCard
             icon={DollarSign}
             label="Chiffre d'affaires"
-            value={formatCurrency(kpis.sales, "USD")}
+            value={formatCurrency(kpis.sales, "CDF")}
             sub={kpis.salesSub}
             delta={kpis.salesDelta}
             loading={loading}
@@ -106,7 +106,7 @@ export default function ReportsPage() {
           <KpiCard
             icon={Wallet}
             label="Panier moyen"
-            value={formatCurrency(kpis.avgTicket, "USD")}
+            value={formatCurrency(kpis.avgTicket, "CDF")}
             sub="par commande payée"
             loading={loading}
           />
@@ -127,7 +127,7 @@ export default function ReportsPage() {
             subtitle={`Du ${formatDate(filters.from)} au ${formatDate(filters.to)}`}
             right={<ChartLegend />}
           />
-          <div className="relative mt-2 h-72">
+          <div className="relative mt-2 h-56 w-full sm:h-64 lg:h-72">
             {data && data.byDay.length > 0 ? (
               <LineChart
                 series={[
@@ -137,6 +137,7 @@ export default function ReportsPage() {
                     values: trend.sales,
                     pointLabels: trend.labels,
                     color: "var(--brand)",
+                    formatValue: (v) => formatCurrencyCompact(v, "CDF"),
                   },
                   {
                     id: "orders",
@@ -144,9 +145,9 @@ export default function ReportsPage() {
                     values: trend.orders,
                     pointLabels: trend.labels,
                     color: "#A855F7",
+                    formatValue: (v) => formatNumber(v),
                   },
                 ]}
-                formatValue={(v) => formatCurrencyCompact(v, "USD")}
               />
             ) : (
               <EmptyState
@@ -180,7 +181,7 @@ export default function ReportsPage() {
                   secondaryValue: p.totalSold,
                   secondaryLabel: `${formatNumber(p.totalSold)} vendus`,
                 }))}
-                formatValue={(n) => formatCurrencyCompact(n, "USD")}
+                formatValue={(n) => formatCurrencyCompact(n, "CDF")}
                 emptyLabel="Aucune vente sur cette période"
               />
             </div>
@@ -204,9 +205,9 @@ export default function ReportsPage() {
                   centerLabel="CA"
                   centerValue={formatCurrencyCompact(
                     data.byCategory.reduce((s, c) => s + c.total, 0),
-                    "USD",
+                    "CDF",
                   )}
-                  formatValue={(n) => formatCurrencyCompact(n, "USD")}
+                  formatValue={(n) => formatCurrencyCompact(n, "CDF")}
                 />
               </div>
             ) : (
@@ -234,7 +235,7 @@ export default function ReportsPage() {
                   secondaryValue: c.orders,
                   secondaryLabel: `${formatNumber(c.orders)} cmd`,
                 }))}
-                formatValue={(n) => formatCurrencyCompact(n, "USD")}
+                formatValue={(n) => formatCurrencyCompact(n, "CDF")}
                 emptyLabel="Aucun caissier enregistré"
               />
             </div>
@@ -273,7 +274,7 @@ export default function ReportsPage() {
                             </span>
                           </div>
                           <span className="font-bold tabular-nums">
-                            {formatCurrency(p.total, "USD")}
+                            {formatCurrency(p.total, "CDF")}
                           </span>
                         </div>
                         <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
@@ -325,7 +326,7 @@ export default function ReportsPage() {
               <RecapRow
                 icon={Coins}
                 label="TVA collectée"
-                value={formatCurrency(kpis.taxTotal, "USD")}
+                value={formatCurrency(kpis.taxTotal, "CDF")}
                 color="#0EA5E9"
               />
               <RecapRow
@@ -343,7 +344,7 @@ export default function ReportsPage() {
               <RecapRow
                 icon={Percent}
                 label="Remises"
-                value={formatCurrency(kpis.discountTotal, "USD")}
+                value={formatCurrency(kpis.discountTotal, "CDF")}
                 color="#F59E0B"
               />
             </ul>
@@ -392,7 +393,7 @@ function ChartLegend() {
     <div className="hidden items-center gap-3 text-xs sm:flex">
       <span className="inline-flex items-center gap-1.5">
         <span className="h-2.5 w-2.5 rounded-full bg-[var(--brand)]" />
-        <span className="text-muted-foreground">Ventes (USD)</span>
+        <span className="text-muted-foreground">Ventes (CDF)</span>
       </span>
       <span className="inline-flex items-center gap-1.5">
         <span className="h-2.5 w-2.5 rounded-full bg-[#A855F7]" />
@@ -681,7 +682,7 @@ function FiltersBar({
         {breakdown ? (
           <span className="ml-auto">
             {formatNumber(breakdown.totalOrders)} commandes ·{" "}
-            {formatCurrency(breakdown.totalSales, "USD")}
+            {formatCurrency(breakdown.totalSales, "CDF")}
           </span>
         ) : null}
       </div>
