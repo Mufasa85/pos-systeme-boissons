@@ -49,8 +49,6 @@ import type { CartItem } from "@/lib/types";
 // secondary line on the receipt / on-screen invoice for
 // reference.
 
-const TAX_RATE = 0.05;
-
 const paymentMethods = [
   { id: "cash", label: "Espèces", method: "cash" as const, icon: Banknote },
   { id: "card", label: "Carte", method: "card" as const, icon: CreditCard },
@@ -110,13 +108,12 @@ export function CartPanel({
     setMounted(true);
   }, []);
 
-  // All math is done in FC.
+  // All math is done in FC, no tax breakdown.
   const subtotal = items.reduce(
     (s, i) => s + Number(i.drink.price) * i.quantity,
     0,
   );
-  const tax = subtotal * TAX_RATE;
-  const total = subtotal + tax;
+  const total = subtotal;
 
   // Items shown inside the dialog. After the order is paid we freeze
   // the snapshot so the receipt keeps showing the sold articles.
@@ -569,12 +566,6 @@ export function CartPanel({
             <span>Sous-total</span>
             <span className="font-medium text-foreground tabular-nums">
               {formatPrice(subtotal)}
-            </span>
-          </div>
-          <div className="flex justify-between text-muted-foreground">
-            <span>TVA (5%)</span>
-            <span className="font-medium text-foreground tabular-nums">
-              {formatPrice(tax)}
             </span>
           </div>
           <div className="flex justify-between pt-1 text-base font-bold">
