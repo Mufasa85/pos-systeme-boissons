@@ -246,9 +246,13 @@ export function useReportBreakdown(
       path: `${apiBase()}/orders?${search.toString()}`,
       signal: ac.signal,
     })
-      .then((orders) => {
+      .then((payload) => {
         if (cancelled) return;
-        setData(buildBreakdown(orders ?? []));
+        // The backend returns a paginated envelope: { success, data, meta }.
+        const orders = Array.isArray(payload)
+          ? payload
+          : (payload as { data?: ApiOrder[] }).data ?? [];
+        setData(buildBreakdown(orders));
         setLoading(false);
       })
       .catch((err: unknown) => {
@@ -301,7 +305,9 @@ function buildBreakdown(orders: ApiOrder[]): ReportBreakdown {
   // ---- by day -------------------------------------------------------------
   const byDayMap = new Map<string, { ordersCount: number; total: number }>();
   for (const o of paid) {
-    const day = (o.createdAt || "").slice(0, 10);
+    const rawDate =
+      o.createdAt || (o as unknown as { created_at?: string }).created_at || "";
+    const day = rawDate.slice(0, 10);
     if (!day) continue;
     const entry = byDayMap.get(day) ?? { ordersCount: 0, total: 0 };
     entry.ordersCount += 1;
