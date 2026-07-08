@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { MoreVertical, Printer, XIcon } from "lucide-react";
+import { Calendar, MoreVertical, Printer, User, XIcon } from "lucide-react";
 import { PosShell } from "@/components/pos-shell";
 import { useBranding } from "@/components/branding-provider";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,14 +21,51 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useFiscalInfo } from "@/lib/use-fiscal-info";
-import { ApiError, ApiOrder, fetchOrders } from "@/lib/api";
+import { ApiError, ApiOrder, Cashier, fetchCashiers, fetchOrders } from "@/lib/api";
 import { formatDateTime, formatPrice } from "@/lib/format";
+
+type DatePreset = "today" | "7d" | "30d" | "all";
+
+function toIsoDay(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function getDateRange(preset: DatePreset): { from?: string; to?: string } {
+  if (preset === "all") return {};
+  const today = new Date();
+  const to = `${toIsoDay(today)} 23:59:59`;
+  if (preset === "today") return { from: `${toIsoDay(today)} 00:00:00`, to };
+  const start = new Date(today);
+  start.setDate(today.getDate() - (preset === "7d" ? 6 : 29));
+  return { from: `${toIsoDay(start)} 00:00:00`, to };
+}
 
 export default function HistoryPage() {
   const [orders, setOrders] = useState<ApiOrder[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<ApiOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [datePreset, setDatePreset] = useState<DatePreset>("all");
+  const [cashierId, setCashierId] = useState<number | undefined>(undefined);
+  const [cashiers, setCashiers] = useState<Cashier[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchCashiers()
+      .then((list) => {
+        if (cancelled) return;
+        setCashiers(list);
+      })
+      .catch(() => {
+        // Silently ignore cashier list errors — filtering still works without it.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,7 +74,14 @@ export default function HistoryPage() {
       setLoading(true);
       setError(null);
       try {
-        const data = await fetchOrders({ page: 1, limit: 4 });
+        const range = getDateRange(datePreset);
+        const data = await fetchOrders({
+          page: 1,
+          limit: 100,
+          cashierId,
+          from: range.from,
+          to: range.to,
+        });
         if (cancelled) return;
         setOrders(data);
       } catch (err) {
@@ -57,16 +102,65 @@ export default function HistoryPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [datePreset, cashierId]);
 
   return (
     <PosShell active="history" title="History">
       <div className="glass-strong rounded-3xl p-5">
-        <div className="mb-3 flex items-center justify-between">
-          <p className="text-sm font-semibold">Historique des commandes</p>
-          <p className="text-xs text-muted-foreground">
-            {orders.length} dernières entrées
-          </p>
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold">Historique des commandes</p>
+            <p className="text-xs text-muted-foreground">
+              {orders.length} facture(s)
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex rounded-2xl bg-muted/50 p-1">
+              {(
+                [
+                  { id: "today", label: "Aujourd'hui" },
+                  { id: "7d", label: "7 jours" },
+                  { id: "30d", label: "30 jours" },
+                  { id: "all", label: "Toutes" },
+                ] as { id: DatePreset; label: string }[]
+              ).map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => setDatePreset(preset.id)}
+                  className={cn(
+                    "rounded-xl px-3 py-1.5 text-xs font-medium transition-colors",
+                    datePreset === preset.id
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="relative">
+              <User className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <select
+                value={cashierId ?? ""}
+                onChange={(e) =>
+                  setCashierId(
+                    e.target.value === "" ? undefined : Number(e.target.value),
+                  )
+                }
+                className="h-8 appearance-none rounded-xl border border-border bg-background pl-8 pr-7 text-xs font-medium outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="">Tous les vendeurs</option>
+                {cashiers.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.fullName}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
 
         {loading ? (
@@ -147,7 +241,7 @@ export default function HistoryPage() {
                         {typeof order.totalAmount === "number"
                           ? new Intl.NumberFormat("fr-FR", {
                               style: "currency",
-                              currency: order.currency || "USD",
+                              currency: order.currency || "CDF",
                             }).format(order.totalAmount)
                           : order.totalAmount}
                       </p>
@@ -378,17 +472,17 @@ function HistoryInvoiceModal({
               <span className="rcp-bold">{formatPrice(totalAmount)}</span>
             </div>
 
-            {/* ===== Date + équivalent USD ===== */}
+            {/* ===== Date + équivalent CDF ===== */}
             <div className="rcp-dashed" />
             <div className="rcp-line rcp-tiny">
-              <span>Équivalent USD</span>
-              <span>{fxRate > 0 ? `${equivalentUsd.toFixed(2)} $` : "—"}</span>
+              <span>Équivalent CDF</span>
+              <span>{fxRate > 0 ? `${equivalentUsd.toFixed(2)} FC` : "—"}</span>
             </div>
             <div className="rcp-line rcp-tiny">
               <span>Taux appliqué</span>
               <span>
                 {fxRate > 0
-                  ? `1 $ = ${fxRate.toLocaleString("fr-FR")} FC`
+                  ? `1 CDF = ${fxRate.toLocaleString("fr-FR")} FC`
                   : "—"}
               </span>
             </div>
@@ -565,7 +659,7 @@ function HistoryInvoiceModal({
                     {typeof item.lineTotal === "number"
                       ? new Intl.NumberFormat("fr-FR", {
                           style: "currency",
-                          currency: selectedOrder?.currency || "USD",
+                          currency: selectedOrder?.currency || "CDF",
                         }).format(item.lineTotal)
                       : item.lineTotal}
                   </span>
@@ -585,19 +679,19 @@ function HistoryInvoiceModal({
                 {selectedOrder?.totalAmount != null
                   ? new Intl.NumberFormat("fr-FR", {
                       style: "currency",
-                      currency: selectedOrder?.currency || "USD",
+                      currency: selectedOrder?.currency || "CDF",
                     }).format(totalAmount)
                   : "—"}
               </span>
             </div>
             <div className="flex justify-between border-b border-dashed border-zinc-300 py-1">
               <span>Taux du jour</span>
-              <span>{fxRate > 0 ? `${fxRate.toFixed(4)} Fc/USD` : "—"}</span>
+              <span>{fxRate > 0 ? `${fxRate.toFixed(4)} FC/CDF` : "—"}</span>
             </div>
             <div className="flex justify-between border-b border-dashed border-zinc-300 py-1">
-              <span>Equivalent en USD</span>
+              <span>Equivalent en CDF</span>
               <span className="text-zinc-900">
-                {fxRate > 0 ? `${equivalentUsd.toFixed(2)}$` : "—"}
+                {fxRate > 0 ? `${equivalentUsd.toFixed(2)} FC` : "—"}
               </span>
             </div>
             <div className="flex justify-between border-b border-dashed border-zinc-300 py-1">
