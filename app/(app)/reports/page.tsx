@@ -665,8 +665,9 @@ function FiltersBar({
           <Button
             size="sm"
             variant="outline"
-            onClick={() => window.print()}
+            onClick={() => printReport(breakdown, filters)}
             className="gap-1.5"
+            disabled={!breakdown}
           >
             <FileText className="h-3.5 w-3.5" />
             Imprimer
@@ -840,4 +841,137 @@ function exportCsv(data: ReportBreakdown | null, filters: ReportFilters) {
   a.download = `rapport-joac-${filters.from}_${filters.to}.csv`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+function printReport(data: ReportBreakdown | null, filters: ReportFilters) {
+  if (!data) return;
+  const rows = (items: string[][]) =>
+    items.map((cells) => `<tr>${cells.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("");
+  const html = `
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Rapport ${filters.from} → ${filters.to}</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 24px; color: #111; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    .period { color: #666; font-size: 13px; margin-bottom: 20px; }
+    .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+    .kpi { border: 1px solid #ddd; border-radius: 8px; padding: 12px; }
+    .kpi-label { font-size: 11px; color: #666; text-transform: uppercase; }
+    .kpi-value { font-size: 18px; font-weight: 700; margin-top: 4px; }
+    h2 { font-size: 14px; margin: 20px 0 8px; border-bottom: 1px solid #eee; padding-bottom: 4px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 16px; }
+    th, td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #eee; }
+    th { font-weight: 600; background: #f8f8f8; }
+    td:last-child, th:last-child { text-align: right; }
+    .muted { color: #666; }
+    @media print { body { margin: 0; } }
+  </style>
+</head>
+<body>
+  <h1>Rapport de ventes</h1>
+  <div class="period">Période : ${formatDate(filters.from)} → ${formatDate(filters.to)}</div>
+
+  <div class="kpis">
+    <div class="kpi">
+      <div class="kpi-label">Chiffre d'affaires</div>
+      <div class="kpi-value">${formatCurrency(data.totalSales, "CDF")}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Commandes payées</div>
+      <div class="kpi-value">${formatNumber(data.totalOrders)}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Panier moyen</div>
+      <div class="kpi-value">${formatCurrency(data.averageTicket, "CDF")}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Taux de remise</div>
+      <div class="kpi-value">${formatPercent(
+        data.totalSales > 0 ? data.taxTotal / data.totalSales : 0,
+        1,
+      )}</div>
+    </div>
+  </div>
+
+  <h2>Évolution par jour</h2>
+  <table>
+    <thead><tr><th>Date</th><th>Commandes</th><th>CA</th></tr></thead>
+    <tbody>
+      ${rows(
+        data.byDay.map((d) => [
+          formatDate(d.day),
+          formatNumber(d.ordersCount),
+          formatCurrency(d.total, "CDF"),
+        ]),
+      )}
+    </tbody>
+  </table>
+
+  <h2>Top produits</h2>
+  <table>
+    <thead><tr><th>Produit</th><th>Vendus</th><th>CA</th></tr></thead>
+    <tbody>
+      ${rows(
+        data.topProducts.map((p) => [
+          p.name ?? "Produit",
+          formatNumber(p.totalSold),
+          formatCurrency(p.revenue, "CDF"),
+        ]),
+      )}
+    </tbody>
+  </table>
+
+  <h2>Mix par catégorie</h2>
+  <table>
+    <thead><tr><th>Catégorie</th><th>Quantité</th><th>CA</th></tr></thead>
+    <tbody>
+      ${rows(
+        data.byCategory.map((c) => [
+          c.name,
+          formatNumber(c.count),
+          formatCurrency(c.total, "CDF"),
+        ]),
+      )}
+    </tbody>
+  </table>
+
+  <h2>Performance par caissier</h2>
+  <table>
+    <thead><tr><th>Caissier</th><th>Commandes</th><th>CA</th></tr></thead>
+    <tbody>
+      ${rows(
+        data.byCashier.map((c) => [
+          c.name,
+          formatNumber(c.orders),
+          formatCurrency(c.total, "CDF"),
+        ]),
+      )}
+    </tbody>
+  </table>
+
+  <h2>Modes de paiement</h2>
+  <table>
+    <thead><tr><th>Méthode</th><th>Nombre</th><th>Montant</th></tr></thead>
+    <tbody>
+      ${rows(
+        data.byPaymentMethod.map((p) => [
+          p.method,
+          formatNumber(p.count),
+          formatCurrency(p.total, "CDF"),
+        ]),
+      )}
+    </tbody>
+  </table>
+</body>
+</html>
+  `;
+  const win = window.open("", "_blank", "width=900,height=700");
+  if (!win) return;
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 300);
 }
