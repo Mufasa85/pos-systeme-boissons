@@ -456,7 +456,7 @@ export default function StockPage() {
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {d.category?.slug ?? d.categoryId} ·{" "}
-                          {Number(d.price).toFixed(2)} $ · {d.stockQuantity} en
+                          {Number(d.price).toLocaleString("fr-CD")} FC · {d.stockQuantity} en
                           stock
                         </p>
                       </div>
@@ -801,7 +801,7 @@ export default function StockPage() {
                     htmlFor="product-price"
                     className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
                   >
-                    Prix (USD)
+                    Prix (FC)
                   </label>
                   <div className="relative">
                     <DollarSign className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
