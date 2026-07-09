@@ -10,6 +10,7 @@ import {
   LogOut,
   Package,
   Settings,
+  ShieldCheck,
   ShoppingBag,
   Users,
   X,
@@ -56,6 +57,7 @@ const allNavItems: { id: NavKey; label: string; icon: typeof ShoppingBag }[] = [
   { id: "users", label: "Utilisateurs", icon: Users },
   { id: "reports", label: "Reports", icon: BarChart3 },
   { id: "history", label: "History", icon: History },
+  { id: "supervision", label: "Supervision", icon: ShieldCheck },
 ];
 
 export function Sidebar({
