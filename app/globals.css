@@ -179,7 +179,7 @@
 @media print {
   @page {
     size: 58mm auto;
-    margin: 0;
+    margin: 2mm;
   }
 
   html,
@@ -214,6 +214,7 @@
     width: 58mm;
     min-height: 100%;
     padding: 2mm 3mm 3mm;
+    margin: 0px;
     background: #ffffff;
     color: #000000;
     font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
