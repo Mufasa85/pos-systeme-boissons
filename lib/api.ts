@@ -10,7 +10,7 @@
 const API_BASE_URL =
   (typeof process !== "undefined" &&
     process.env.NEXT_PUBLIC_API_BASE_URL) ||
-  "http://localhost:4000/api"
+  "http://192.168.1.64:4000/api"
 
 const TOKEN_STORAGE_KEY = "pos-brikin:auth-token"
 
@@ -683,4 +683,43 @@ export async function uploadImage(
   onProgress?: (percent: number) => void,
 ): Promise<ApiUploadResult> {
   return uploadProductImage(file, onProgress);
+}
+
+// ============================================================
+// Supervision API — platform quota management
+// ============================================================
+
+export interface SupervisionStats {
+  quota: number;
+  quotaEnabled: boolean;
+  invoicesPrinted: number;
+  invoicesToday: number;
+  invoicesThisMonth: number;
+  totalRevenue: number;
+  activeCashiers: number;
+  remaining: number;
+  isBlocked: boolean;
+  utilization: number;
+}
+
+export interface UpdateSupervisionPayload {
+  invoiceQuota?: number;
+  quotaEnabled?: boolean;
+}
+
+export async function fetchSupervisionStats(): Promise<SupervisionStats> {
+  return apiRequest<SupervisionStats>({
+    method: "GET",
+    path: `${API_BASE_URL}/supervision`,
+  });
+}
+
+export async function updateSupervision(
+  payload: UpdateSupervisionPayload,
+): Promise<SupervisionStats> {
+  return apiRequest<SupervisionStats>({
+    method: "PUT",
+    path: `${API_BASE_URL}/supervision`,
+    body: payload,
+  });
 }
