@@ -421,7 +421,9 @@ function buildBreakdown(orders: ApiOrder[]): ReportBreakdown {
   // ---- by hour -------------------------------------------------------------
   const hourMap = new Map<number, { hour: number; count: number; total: number }>();
   for (const o of paid) {
-    const d = new Date(o.createdAt);
+    const rawDate =
+      o.createdAt || (o as unknown as { created_at?: string }).created_at || "";
+    const d = new Date(rawDate);
     if (Number.isNaN(d.getTime())) continue;
     const h = d.getHours();
     const entry = hourMap.get(h) ?? { hour: h, count: 0, total: 0 };
