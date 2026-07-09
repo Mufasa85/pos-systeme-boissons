@@ -34,7 +34,8 @@ export type NavKey =
   | "categories"
   | "users"
   | "reports"
-  | "history";
+  | "history"
+  | "supervision";
 
 /** Mapping between nav key and the URL it points to. */
 export const NAV_PATHS: Record<NavKey, string> = {
@@ -46,6 +47,7 @@ export const NAV_PATHS: Record<NavKey, string> = {
   users: "/users",
   reports: "/reports",
   history: "/history",
+  supervision: "/supervision",
 };
 
 /** Inverse lookup: URL → nav key (used by the route guard). */
@@ -66,6 +68,7 @@ export const NAV_ACCESS: Record<NavKey, readonly Role[]> = {
   users: ["admin"],
   reports: ["admin"],
   history: ["cashier", "manager", "admin"],
+  supervision: ["admin"],
 };
 
 /** Capability flags. The branding dialog is admin-only. */
@@ -80,6 +83,7 @@ export const CAPABILITIES = {
   manageCatalog: ["manager", "admin"] as readonly Role[],
   /** Can see the analytics dashboard. */
   viewDashboard: ["manager", "admin"] as readonly Role[],
+  manageSupervision: ["admin"] as readonly Role[],
 } as const;
 
 export type Capability = keyof typeof CAPABILITIES;
