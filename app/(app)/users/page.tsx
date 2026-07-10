@@ -676,6 +676,7 @@ export default function UsersPage() {
           </DialogHeader>
 
           <form
+            id="user-form"
             className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-2 md:grid md:grid-cols-2 md:gap-4 md:space-y-0"
             onSubmit={handleSubmit}
           >
@@ -956,7 +957,7 @@ export default function UsersPage() {
             >
               Annuler
             </Button>
-            <Button type="submit" disabled={saving} className="sm:order-2">
+            <Button type="submit" form="user-form" disabled={saving} className="sm:order-2">
               {saving ? (
                 <span className="inline-flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
