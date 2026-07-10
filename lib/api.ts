@@ -406,6 +406,8 @@ export interface ApiBranding {
   address: string;
   phone: string;
   email: string;
+  fxRate?: number | null;
+  fxRateId?: number | null;
   updatedAt?: string;
 }
 
