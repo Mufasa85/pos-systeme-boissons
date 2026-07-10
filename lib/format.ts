@@ -284,6 +284,19 @@ export function formatFcAsUsd(
   return formatUsd(n / FX_USD_TO_CDF);
 }
 
+/**
+ * Same as `formatFcAsUsd` but uses a dynamic FX rate (e.g. fetched
+ * from the branding API) instead of the hard-coded constant.
+ */
+export function formatFcAsUsdWithRate(
+  valueFc: number | string | null | undefined,
+  rate: number,
+): string {
+  const n = toNumber(valueFc);
+  if (!Number.isFinite(n) || !Number.isFinite(rate) || rate <= 0) return "—";
+  return formatUsd(n / rate);
+}
+
 /* -------------------------------------------------------------------------- */
 /*                                Math helpers                                */
 /* -------------------------------------------------------------------------- */
