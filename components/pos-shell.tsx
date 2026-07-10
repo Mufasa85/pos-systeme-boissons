@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { BrandingProvider } from "@/components/branding-provider";
 import { BrandingDialog } from "@/components/branding-dialog";
 import { Sidebar } from "@/components/sidebar";
@@ -19,16 +19,34 @@ export function PosShell({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [navLoading, setNavLoading] = useState(false);
+
+  // Show the progress bar when the pathname changes, then hide it
+  // shortly after to allow the new page's content to paint.
+  useEffect(() => {
+    setNavLoading(true);
+    const t = setTimeout(() => setNavLoading(false), 600);
+    return () => clearTimeout(t);
+  }, [pathname]);
 
   return (
     <BrandingProvider>
       <div className="flex h-screen bg-background overflow-hidden">
+        {/* Navigation progress bar */}
+        {navLoading && (
+          <div className="fixed left-0 top-0 z-[100] h-0.5 w-full overflow-hidden">
+            <div className="h-full w-1/3 animate-[navProgress_1s_ease-in-out_infinite] rounded-full bg-[var(--brand)]" />
+          </div>
+        )}
+
         <Sidebar
           active={active}
           onChange={(id) => {
             if (id in NAV_PATHS) {
+              setNavLoading(true);
               router.push(NAV_PATHS[id as NavKey]);
             }
           }}
