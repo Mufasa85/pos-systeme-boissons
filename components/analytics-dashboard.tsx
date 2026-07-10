@@ -26,7 +26,7 @@ import { LineChart } from "@/components/charts/line-chart";
 import { Sparkline } from "@/components/charts/sparkline";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useDashboardSummary, useRecentActivity } from "@/lib/use-dashboard";
+import { useDashboardSummary, useHourlyActivity, useRecentActivity } from "@/lib/use-dashboard";
 import {
   formatCurrency,
   formatCurrencyCompact,
@@ -46,6 +46,7 @@ import {
 export function AnalyticsDashboard() {
   const { data, loading, error, reload } = useDashboardSummary(60_000);
   const activity = useRecentActivity(15, 60_000);
+  const hourly = useHourlyActivity(60_000);
 
   const series = data?.salesByDay ?? [];
   const totalByDay = useMemo(
@@ -316,19 +317,21 @@ export function AnalyticsDashboard() {
         <CardHeader
           icon={BarChart3}
           title="Activité horaire"
-          subtitle="Heatmap indicative des commandes sur la journée"
+          subtitle="Répartition des commandes par heure (toutes dates confondues)"
         />
         <div className="mt-3">
-          <HourHeatmap
-            data={placeholderHourly()}
-            metric="count"
-            formatValue={(n) => formatNumber(n)}
-          />
+          {hourly.loading && hourly.data.length === 0 ? (
+            <div className="flex h-24 items-center justify-center text-sm text-muted-foreground">
+              Chargement…
+            </div>
+          ) : (
+            <HourHeatmap
+              data={hourly.data}
+              metric="count"
+              formatValue={(n) => formatNumber(n)}
+            />
+          )}
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Heatmap indicative — sera synchronisée depuis l'API dès que l'endpoint
-          dédié sera disponible côté backend.
-        </p>
       </div>
     </div>
   );
@@ -565,30 +568,6 @@ function ActivityIcon({ type }: { type: string }) {
     return <ShoppingCart className="h-4 w-4" />;
   if (t.includes("stock")) return <Package className="h-4 w-4" />;
   return <Activity className="h-4 w-4" />;
-}
-
-function placeholderHourly(): { hour: number; count: number; total: number }[] {
-  const result: { hour: number; count: number; total: number }[] = [];
-  for (let h = 0; h < 24; h++) {
-    const base =
-      h < 6
-        ? 0
-        : h < 11
-          ? 3 + Math.round(Math.sin(h) * 2)
-          : h < 14
-            ? 18 + Math.round(Math.cos(h) * 4)
-            : h < 18
-              ? 8 + Math.round(Math.sin(h / 2) * 3)
-              : h < 23
-                ? 14 + Math.round(Math.cos(h) * 5)
-                : 2;
-    result.push({
-      hour: h,
-      count: Math.max(0, base),
-      total: Math.max(0, base) * 18,
-    });
-  }
-  return result;
 }
 
 export { DonutChart };

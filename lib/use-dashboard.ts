@@ -198,6 +198,72 @@ export function useRecentActivity(
 }
 
 /* -------------------------------------------------------------------------- */
+/*                             Hook: useHourlyActivity                         */
+/* -------------------------------------------------------------------------- */
+
+export interface HourlyPoint {
+  hour: number;
+  count: number;
+  total: number;
+}
+
+interface UseHourlyActivityResult {
+  data: HourlyPoint[];
+  loading: boolean;
+  error: string | null;
+  reload: () => void;
+}
+
+export function useHourlyActivity(
+  pollMs = 0,
+): UseHourlyActivityResult {
+  const [data, setData] = useState<HourlyPoint[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [nonce, setNonce] = useState(0);
+
+  const reload = useCallback(() => setNonce((n) => n + 1), []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const ac = new AbortController();
+    setLoading(true);
+    setError(null);
+    apiRequest<HourlyPoint[]>({
+      method: "GET",
+      path: `${apiBase()}/dashboard/hourly`,
+      signal: ac.signal,
+    })
+      .then((payload) => {
+        if (cancelled) return;
+        setData(Array.isArray(payload) ? payload : []);
+        setLoading(false);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        if (err instanceof DOMException && err.name === "AbortError") {
+          setLoading(false);
+          return;
+        }
+        setError(err instanceof ApiError ? err.message : String(err));
+        setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+      ac.abort();
+    };
+  }, [nonce]);
+
+  useEffect(() => {
+    if (pollMs <= 0) return;
+    const id = setInterval(() => setNonce((n) => n + 1), pollMs);
+    return () => clearInterval(id);
+  }, [pollMs]);
+
+  return { data, loading, error, reload };
+}
+
+/* -------------------------------------------------------------------------- */
 /*                          Hook: useReportBreakdown                          */
 /* -------------------------------------------------------------------------- */
 
