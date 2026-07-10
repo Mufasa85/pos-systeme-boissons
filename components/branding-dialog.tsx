@@ -390,9 +390,41 @@ export function BrandingDialog({
               </div>
             </div>
           </div>
+          {/* ============== Taux de change ============== */}
+          <div className="pt-2">
+            <div className="mb-2 flex items-baseline justify-between">
+              <Label className="text-sm font-semibold">
+                Taux de change
+              </Label>
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                USD → CDF
+              </span>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="fxRate">1 USD = ? CDF</Label>
+              <Input
+                id="fxRate"
+                type="number"
+                step="0.0001"
+                min="0"
+                value={branding.fxRate ?? ""}
+                onChange={(e) =>
+                  setBranding({
+                    fxRate: e.target.value === "" ? null : parseFloat(e.target.value),
+                  })
+                }
+                className="rounded-xl font-mono text-sm"
+                placeholder="2289.3077"
+              />
+              <p className="text-xs text-muted-foreground">
+                Taux appliqué lors de la conversion des montants en francs congolais
+                sur les reçus et dans les rapports.
+              </p>
+            </div>
+          </div>
         </div>
 
-        <DialogFooter className="shrink-0 mt-0 flex flex-col gap-2 border-t border-border pt-3 sm:flex-row sm:items-center sm:justify-between sm:border-0 sm:pt-0">
+        <DialogFooter className="shrink-0 flex flex-col gap-2 border-t border-border pt-3 sm:flex-row sm:items-center sm:justify-between sm:border-0 sm:pt-0">
           <Button
             type="button"
             variant="ghost"

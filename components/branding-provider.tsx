@@ -40,6 +40,7 @@ export interface BrandingForm extends Branding {
   address: string;
   phone: string;
   email: string;
+  fxRate: number | null;
 }
 
 interface BrandingContextValue {
@@ -93,6 +94,7 @@ function apiBrandingToLocal(api: ApiBranding): BrandingForm {
     address: api.address,
     phone: api.phone,
     email: api.email,
+    fxRate: api.fxRate ?? null,
   };
 }
 
@@ -110,6 +112,7 @@ function localToApiPayload(b: BrandingForm): Partial<ApiBranding> {
     address: b.address,
     phone: b.phone,
     email: b.email,
+    fxRate: b.fxRate,
   };
 }
 
@@ -123,6 +126,7 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
     address: "",
     phone: "",
     email: "",
+    fxRate: null,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

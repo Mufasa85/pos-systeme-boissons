@@ -31,7 +31,7 @@ import { ApiError, createOrder, payOrder, type ApiOrder } from "@/lib/api";
 import { useFiscalInfo } from "@/lib/use-fiscal-info";
 import {
   formatDateTime,
-  formatFcAsUsd,
+  formatFcAsUsdWithRate,
   formatPrice,
   FX_USD_TO_CDF,
 } from "@/lib/format";
@@ -84,6 +84,10 @@ export function CartPanel({
   const { branding } = useBranding();
   const { cashier } = useAuth();
   const { data: fiscal, loading: fiscalLoading } = useFiscalInfo();
+
+  // Use the live FX rate from the branding API, falling back to the
+  // hard-coded constant if the API hasn't loaded yet or returned null.
+  const liveFxRate = branding.fxRate ?? FX_USD_TO_CDF;
 
   const [payment, setPayment] = useState<PayMethod>("card");
   const [invoiceOpen, setInvoiceOpen] = useState(false);
@@ -372,11 +376,11 @@ export function CartPanel({
             <div className="rcp-dashed" />
             <div className="rcp-line rcp-tiny">
               <span>Équivalent USD</span>
-              <span>{formatFcAsUsd(receiptTotalFc)}</span>
+              <span>{formatFcAsUsdWithRate(receiptTotalFc, liveFxRate)}</span>
             </div>
             <div className="rcp-line rcp-tiny">
               <span>Taux appliqué</span>
-              <span>1 $ = {FX_USD_TO_CDF.toLocaleString("fr-FR")} FC</span>
+              <span>1 $ = {liveFxRate.toLocaleString("fr-FR")} FC</span>
             </div>
             <div className="rcp-line rcp-tiny">
               <span>Imprimé le</span>
@@ -716,13 +720,13 @@ export function CartPanel({
               <div className="flex justify-between border-b border-dashed border-zinc-300 py-1">
                 <span>Équivalent USD</span>
                 <span className="font-semibold text-zinc-900 tabular-nums">
-                  {formatFcAsUsd(receiptTotalFc)}
+                  {formatFcAsUsdWithRate(receiptTotalFc, liveFxRate)}
                 </span>
               </div>
               <div className="flex justify-between border-b border-dashed border-zinc-300 py-1">
                 <span>Taux du jour</span>
                 <span className="tabular-nums">
-                  1 $ = {FX_USD_TO_CDF.toLocaleString("fr-FR")} FC
+                  1 $ = {liveFxRate.toLocaleString("fr-FR")} FC
                 </span>
               </div>
               <div className="flex justify-between border-b border-dashed border-zinc-300 py-1">
