@@ -242,11 +242,11 @@ export function CartPanel({
   const receiptDate = paidOrder
     ? parseOrderDate(paidOrder.createdAt ?? orderCreatedAt)
     : new Date();
-  // `paidOrder.totalAmount` is already in FC — we display it
-  // directly. If the order hasn't been confirmed yet we fall
-  // back to the dialog total (also in FC).
+  // `paidOrder.totalAmount` is TTC (tax included). We display the
+  // HT amount (total without tax) on the receipt. If the order
+  // hasn't been confirmed yet we fall back to the dialog total.
   const receiptTotalFc = paidOrder
-    ? Number(paidOrder.totalAmount)
+    ? Number(paidOrder.totalAmount) - Number(paidOrder.taxAmount ?? 0)
     : dialogTotal;
 
   // Build the printable receipt as a React portal that we attach
@@ -345,7 +345,7 @@ export function CartPanel({
                   {item.size ? ` ${item.size}` : ""}
                 </div>
                 <div className="rcp-article-line rcp-small">
-                  <span>
+                  <span style={{ marginLeft : '3px'}}>
                     {item.quantity} x {formatPrice(item.drink.price)}
                   </span>
                   <span className="rcp-bold">
@@ -359,16 +359,16 @@ export function CartPanel({
 
             {/* ===== Totaux (en FC) ===== */}
             <div className="rcp-line rcp-small">
-              <span>Sous-total</span>
+              <span>Sous-total HT</span>
               <span>
                 {paidOrder
-                  ? formatPrice(Number(paidOrder.totalAmount))
+                  ? formatPrice(Number(paidOrder.totalAmount) - Number(paidOrder.taxAmount ?? 0))
                   : formatPrice(dialogTotal)}
               </span>
             </div>
 
             <div className="rcp-total">
-              <span className="rcp-bold">TOTAL TTC</span>
+              <span className="rcp-bold">TOTAL HT</span>
               <span className="rcp-bold">{formatPrice(receiptTotalFc)}</span>
             </div>
 
@@ -712,7 +712,7 @@ export function CartPanel({
                 </span>
               </div>
               <div className="flex justify-between border-b border-dashed border-zinc-300 py-1">
-                <span>Total TTC</span>
+                <span>Total HT</span>
                 <span className="font-semibold text-zinc-900 tabular-nums">
                   {formatPrice(receiptTotalFc)}
                 </span>
