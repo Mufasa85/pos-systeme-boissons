@@ -22,7 +22,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useFiscalInfo } from "@/lib/use-fiscal-info";
 import { ApiError, ApiOrder, Cashier, fetchCashiers, fetchOrders } from "@/lib/api";
-import { formatDateTime, formatPrice } from "@/lib/format";
+import { formatDateTime, formatPrice, formatUsd, formatFcAsUsdWithRate } from "@/lib/format";
+
+function parseOrderDate(value: unknown): Date {
+  if (typeof value === "string" || typeof value === "number") {
+    const d = new Date(value);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+  return new Date();
+}
 
 type DatePreset = "today" | "7d" | "30d" | "all";
 
@@ -191,13 +199,13 @@ export default function HistoryPage() {
                   <div>
                     <p className="text-sm font-semibold">{order.orderNumber}</p>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(order.createdAt).toLocaleDateString("fr-FR", {
+                      {parseOrderDate(order.createdAt ?? (order as unknown as { created_at?: string }).created_at).toLocaleDateString("fr-FR", {
                         day: "2-digit",
                         month: "2-digit",
                         year: "numeric",
                       })}
                       {" • "}
-                      {new Date(order.createdAt).toLocaleTimeString("fr-FR", {
+                      {parseOrderDate(order.createdAt ?? (order as unknown as { created_at?: string }).created_at).toLocaleTimeString("fr-FR", {
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
@@ -239,10 +247,11 @@ export default function HistoryPage() {
                       </span>
                       <p className="text-sm font-bold">
                         {typeof order.totalAmount === "number"
-                          ? new Intl.NumberFormat("fr-FR", {
-                              style: "currency",
-                              currency: order.currency || "CDF",
-                            }).format(order.totalAmount)
+                          ? formatPrice(
+                              Number(order.fxRate ?? 0) > 0
+                                ? order.totalAmount * Number(order.fxRate)
+                                : order.totalAmount,
+                            )
                           : order.totalAmount}
                       </p>
                     </div>
@@ -301,16 +310,19 @@ function HistoryInvoiceModal({
     setMounted(true);
   }, []);
 
-  const totalAmount = Number(selectedOrder?.totalAmount ?? 0);
-  const subtotalAmount = Number(selectedOrder?.subtotal ?? 0);
-  const taxAmount = Number(selectedOrder?.taxAmount ?? 0);
-  const fxRate = Number(selectedOrder?.fxRate ?? 0);
-  const equivalentUsd = fxRate > 0 ? totalAmount / fxRate : 0;
+  const totalAmountUsd = Number(selectedOrder?.totalAmount ?? 0);
+  const subtotalAmountUsd = Number(selectedOrder?.subtotal ?? 0);
+  const taxAmountUsd = Number(selectedOrder?.taxAmount ?? 0);
+  const liveFxRate = Number(selectedOrder?.fxRate ?? branding.fxRate ?? 0);
+  const totalAmountFc = liveFxRate > 0 ? totalAmountUsd * liveFxRate : 0;
+  const subtotalAmountFc = liveFxRate > 0 ? subtotalAmountUsd * liveFxRate : 0;
+  const taxAmountFc = liveFxRate > 0 ? taxAmountUsd * liveFxRate : 0;
 
   const companyName = fiscal?.companyName ?? branding.companyName;
-  const orderDate = selectedOrder?.createdAt
-    ? new Date(selectedOrder.createdAt)
-    : new Date();
+  const orderDate = parseOrderDate(
+    selectedOrder?.createdAt ??
+      (selectedOrder as unknown as { created_at?: string } | null)?.created_at,
+  );
 
   function handlePrint() {
     if (printing) return;
@@ -454,35 +466,31 @@ function HistoryInvoiceModal({
               <span>Sous-total HT</span>
               <span>
                 {selectedOrder
-                  ? formatPrice(
-                      subtotalAmount > 0
-                        ? subtotalAmount
-                        : totalAmount - taxAmount,
-                    )
+                  ? formatPrice(subtotalAmountFc > 0 ? subtotalAmountFc : totalAmountFc - taxAmountFc)
                   : "—"}
               </span>
             </div>
             <div className="rcp-line rcp-tiny">
               <span>TVA (5%)</span>
-              <span>{formatPrice(taxAmount)}</span>
+              <span>{formatPrice(taxAmountFc)}</span>
             </div>
 
             <div className="rcp-total">
               <span className="rcp-bold">TOTAL TTC</span>
-              <span className="rcp-bold">{formatPrice(totalAmount)}</span>
+              <span className="rcp-bold">{formatPrice(totalAmountFc)}</span>
             </div>
 
-            {/* ===== Date + équivalent CDF ===== */}
+            {/* ===== Date + équivalent USD ===== */}
             <div className="rcp-dashed" />
             <div className="rcp-line rcp-tiny">
-              <span>Équivalent CDF</span>
-              <span>{fxRate > 0 ? `${equivalentUsd.toFixed(2)} FC` : "—"}</span>
+              <span>Équivalent USD</span>
+              <span>{liveFxRate > 0 ? formatUsd(totalAmountUsd) : "—"}</span>
             </div>
             <div className="rcp-line rcp-tiny">
               <span>Taux appliqué</span>
               <span>
-                {fxRate > 0
-                  ? `1 CDF = ${fxRate.toLocaleString("fr-FR")} FC`
+                {liveFxRate > 0
+                  ? `1 $ = ${liveFxRate.toLocaleString("fr-FR")} FC`
                   : "—"}
               </span>
             </div>
@@ -501,7 +509,7 @@ function HistoryInvoiceModal({
             </div>
             <div className="rcp-line">
               <span className="rcp-bold">Montant reçu:</span>
-              <span className="rcp-bold">{formatPrice(totalAmount)}</span>
+              <span className="rcp-bold">{formatPrice(totalAmountFc)}</span>
             </div>
 
             <div className="rcp-double" />
@@ -628,7 +636,7 @@ function HistoryInvoiceModal({
               <span>Date</span>
               <span>
                 {selectedOrder
-                  ? new Date(selectedOrder.createdAt).toLocaleString("fr-FR")
+                  ? parseOrderDate(selectedOrder.createdAt ?? (selectedOrder as unknown as { created_at?: string }).created_at).toLocaleString("fr-FR")
                   : "—"}
               </span>
             </div>
@@ -677,21 +685,18 @@ function HistoryInvoiceModal({
               <span>Total TTC</span>
               <span className="font-semibold text-zinc-900">
                 {selectedOrder?.totalAmount != null
-                  ? new Intl.NumberFormat("fr-FR", {
-                      style: "currency",
-                      currency: selectedOrder?.currency || "CDF",
-                    }).format(totalAmount)
+                  ? formatPrice(totalAmountFc)
                   : "—"}
               </span>
             </div>
             <div className="flex justify-between border-b border-dashed border-zinc-300 py-1">
               <span>Taux du jour</span>
-              <span>{fxRate > 0 ? `${fxRate.toFixed(4)} FC/CDF` : "—"}</span>
+              <span>{liveFxRate > 0 ? `1 $ = ${liveFxRate.toLocaleString("fr-FR")} FC` : "—"}</span>
             </div>
             <div className="flex justify-between border-b border-dashed border-zinc-300 py-1">
-              <span>Equivalent en CDF</span>
+              <span>Équivalent USD</span>
               <span className="text-zinc-900">
-                {fxRate > 0 ? `${equivalentUsd.toFixed(2)} FC` : "—"}
+                {liveFxRate > 0 ? formatUsd(totalAmountUsd) : "—"}
               </span>
             </div>
             <div className="flex justify-between border-b border-dashed border-zinc-300 py-1">
