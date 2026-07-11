@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useFiscalInfo } from "@/lib/use-fiscal-info";
 import { ApiError, ApiOrder, Cashier, fetchCashiers, fetchOrders } from "@/lib/api";
-import { formatDateTime, formatPrice, formatUsd, formatFcAsUsdWithRate } from "@/lib/format";
+import { formatDateTime, formatPrice } from "@/lib/format";
 
 function parseOrderDate(value: unknown): Date {
   if (typeof value === "string" || typeof value === "number") {
@@ -247,11 +247,7 @@ export default function HistoryPage() {
                       </span>
                       <p className="text-sm font-bold">
                         {typeof order.totalAmount === "number"
-                          ? formatPrice(
-                              Number(order.fxRate ?? 0) > 0
-                                ? order.totalAmount * Number(order.fxRate)
-                                : order.totalAmount,
-                            )
+                          ? formatPrice(order.totalAmount)
                           : order.totalAmount}
                       </p>
                     </div>
@@ -310,13 +306,9 @@ function HistoryInvoiceModal({
     setMounted(true);
   }, []);
 
-  const totalAmountUsd = Number(selectedOrder?.totalAmount ?? 0);
-  const subtotalAmountUsd = Number(selectedOrder?.subtotal ?? 0);
-  const taxAmountUsd = Number(selectedOrder?.taxAmount ?? 0);
-  const liveFxRate = Number(selectedOrder?.fxRate ?? branding.fxRate ?? 0);
-  const totalAmountFc = liveFxRate > 0 ? totalAmountUsd * liveFxRate : 0;
-  const subtotalAmountFc = liveFxRate > 0 ? subtotalAmountUsd * liveFxRate : 0;
-  const taxAmountFc = liveFxRate > 0 ? taxAmountUsd * liveFxRate : 0;
+  const totalAmountFc = Number(selectedOrder?.totalAmount ?? 0);
+  const subtotalAmountFc = Number(selectedOrder?.subtotal ?? 0);
+  const taxAmountFc = Number(selectedOrder?.taxAmount ?? 0);
 
   const companyName = fiscal?.companyName ?? branding.companyName;
   const orderDate = parseOrderDate(
@@ -359,10 +351,11 @@ function HistoryInvoiceModal({
             {/* ===== En-tête société ===== */}
             <div className="rcp-center">
               <div
-                className="rcp-uppercase rcp-tiny"
+                className="rcp-uppercase"
                 style={{
-                  color: "#b91c1c",
-                  fontWeight: 700,
+                  color: "#000000",
+                  fontWeight: 900,
+                  fontSize: "1.4em",
                   letterSpacing: "0.2em",
                 }}
               >
@@ -444,7 +437,7 @@ function HistoryInvoiceModal({
                   {item.size ? ` [${item.size.label}]` : ""}
                 </div>
                 <div className="rcp-article-line rcp-tiny">
-                  <span>
+                  <span style={{ marginLeft: "10px" }}>
                     {item.quantity} x{" "}
                     {typeof item.unitPrice === "number"
                       ? formatPrice(item.unitPrice)
@@ -480,20 +473,8 @@ function HistoryInvoiceModal({
               <span className="rcp-bold">{formatPrice(totalAmountFc)}</span>
             </div>
 
-            {/* ===== Date + équivalent USD ===== */}
+            {/* ===== Date ===== */}
             <div className="rcp-dashed" />
-            <div className="rcp-line rcp-tiny">
-              <span>Équivalent USD</span>
-              <span>{liveFxRate > 0 ? formatUsd(totalAmountUsd) : "—"}</span>
-            </div>
-            <div className="rcp-line rcp-tiny">
-              <span>Taux appliqué</span>
-              <span>
-                {liveFxRate > 0
-                  ? `1 $ = ${liveFxRate.toLocaleString("fr-FR")} FC`
-                  : "—"}
-              </span>
-            </div>
             <div className="rcp-line rcp-tiny">
               <span>Imprimé le</span>
               <span>{formatDateTime(new Date())}</span>
@@ -647,28 +628,25 @@ function HistoryInvoiceModal({
           </div>
 
           <div className="mt-3 rounded-3xl bg-white p-3">
-            <div className="flex items-center justify-between border-b border-dashed border-zinc-300 pb-2 text-[0.75rem] font-semibold uppercase tracking-[0.15em] text-zinc-700">
-              <span className="w-1/2">Article</span>
-              <span className="w-14 text-right">Qté</span>
-              <span className="w-20 text-right">HT</span>
+            <div className="grid grid-cols-[1fr_3rem_5rem] gap-2 border-b border-dashed border-zinc-300 pb-2 text-[0.75rem] font-semibold uppercase tracking-[0.15em] text-zinc-700">
+              <span>Article</span>
+              <span className="text-right">Qté</span>
+              <span className="text-right">HT</span>
             </div>
             <div className="space-y-2 pt-3">
               {selectedOrder?.items?.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between text-[0.75rem] text-zinc-700"
+                  className="grid grid-cols-[1fr_3rem_5rem] gap-2 text-[0.75rem] text-zinc-700"
                 >
-                  <span className="w-1/2 truncate font-medium">
+                  <span className="truncate font-medium">
                     {item.product?.name ?? "Article"}
                     {item.size ? ` [${item.size.label}]` : ""}
                   </span>
-                  <span className="w-14 text-right">{item.quantity}</span>
-                  <span className="w-20 text-right">
+                  <span className="text-right">{item.quantity}</span>
+                  <span className="text-right">
                     {typeof item.lineTotal === "number"
-                      ? new Intl.NumberFormat("fr-FR", {
-                          style: "currency",
-                          currency: selectedOrder?.currency || "CDF",
-                        }).format(item.lineTotal)
+                      ? formatPrice(item.lineTotal)
                       : item.lineTotal}
                   </span>
                 </div>
@@ -682,21 +660,11 @@ function HistoryInvoiceModal({
 
           <div className="mt-3 rounded-3xl bg-white p-3 text-[0.75rem] text-zinc-700">
             <div className="flex justify-between border-b border-dashed border-zinc-300 py-1">
-              <span>Total TTC</span>
+              <span>Total HT</span>
               <span className="font-semibold text-zinc-900">
                 {selectedOrder?.totalAmount != null
                   ? formatPrice(totalAmountFc)
                   : "—"}
-              </span>
-            </div>
-            <div className="flex justify-between border-b border-dashed border-zinc-300 py-1">
-              <span>Taux du jour</span>
-              <span>{liveFxRate > 0 ? `1 $ = ${liveFxRate.toLocaleString("fr-FR")} FC` : "—"}</span>
-            </div>
-            <div className="flex justify-between border-b border-dashed border-zinc-300 py-1">
-              <span>Équivalent USD</span>
-              <span className="text-zinc-900">
-                {liveFxRate > 0 ? formatUsd(totalAmountUsd) : "—"}
               </span>
             </div>
             <div className="flex justify-between border-b border-dashed border-zinc-300 py-1">
