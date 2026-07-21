@@ -455,26 +455,29 @@ function HistoryInvoiceModal({
             <div className="rcp-double" />
 
             {/* ===== Totaux (en FC) ===== */}
-            <div className="rcp-line rcp-tiny">
-              <span>Sous-total HT</span>
-              <span>
-                {selectedOrder
-                  ? formatPrice(subtotalAmountFc > 0 ? subtotalAmountFc : totalAmountFc - taxAmountFc)
-                  : "—"}
-              </span>
-            </div>
-            <div className="rcp-line rcp-tiny">
-              <span>TVA (5%)</span>
-              <span>{formatPrice(taxAmountFc)}</span>
-            </div>
-
             <div className="rcp-total">
               <span className="rcp-bold">TOTAL TTC</span>
               <span className="rcp-bold">{formatPrice(totalAmountFc)}</span>
             </div>
 
-            {/* ===== Date ===== */}
+            {/* ===== Taux + équivalent USD + date ===== */}
             <div className="rcp-dashed" />
+            <div className="rcp-line rcp-tiny">
+              <span>Taux appliqué</span>
+              <span>
+                {Number(selectedOrder?.fxRate ?? 0) > 0
+                  ? `1 $ = ${Number(selectedOrder?.fxRate).toLocaleString("fr-FR")} FC`
+                  : "—"}
+              </span>
+            </div>
+            <div className="rcp-line rcp-tiny">
+              <span>Équivalent USD</span>
+              <span>
+                {Number(selectedOrder?.fxRate ?? 0) > 0
+                  ? `${(totalAmountFc / Number(selectedOrder?.fxRate)).toFixed(2)} $`
+                  : "—"}
+              </span>
+            </div>
             <div className="rcp-line rcp-tiny">
               <span>Imprimé le</span>
               <span>{formatDateTime(new Date())}</span>
@@ -631,7 +634,7 @@ function HistoryInvoiceModal({
             <div className="grid grid-cols-[1fr_3rem_5rem] gap-2 border-b border-dashed border-zinc-300 pb-2 text-[0.75rem] font-semibold uppercase tracking-[0.15em] text-zinc-700">
               <span>Article</span>
               <span className="text-right">Qté</span>
-              <span className="text-right">HT</span>
+              <span className="text-right">TOTAL</span>
             </div>
             <div className="space-y-2 pt-3">
               {selectedOrder?.items?.map((item) => (
@@ -660,10 +663,26 @@ function HistoryInvoiceModal({
 
           <div className="mt-3 rounded-3xl bg-white p-3 text-[0.75rem] text-zinc-700">
             <div className="flex justify-between border-b border-dashed border-zinc-300 py-1">
-              <span>Total HT</span>
+              <span>Total TTC</span>
               <span className="font-semibold text-zinc-900">
                 {selectedOrder?.totalAmount != null
                   ? formatPrice(totalAmountFc)
+                  : "—"}
+              </span>
+            </div>
+            <div className="flex justify-between border-b border-dashed border-zinc-300 py-1">
+              <span>Taux appliqué</span>
+              <span>
+                {Number(selectedOrder?.fxRate ?? 0) > 0
+                  ? `1 $ = ${Number(selectedOrder?.fxRate).toLocaleString("fr-FR")} FC`
+                  : "—"}
+              </span>
+            </div>
+            <div className="flex justify-between border-b border-dashed border-zinc-300 py-1">
+              <span>Équivalent USD</span>
+              <span className="text-zinc-900">
+                {Number(selectedOrder?.fxRate ?? 0) > 0
+                  ? `${(totalAmountFc / Number(selectedOrder?.fxRate)).toFixed(2)} $`
                   : "—"}
               </span>
             </div>
