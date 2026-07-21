@@ -432,7 +432,7 @@ function HistoryInvoiceModal({
             {/* ===== Articles (all amounts in FC) ===== */}
             {selectedOrder?.items?.map((item) => (
               <div key={item.id} className="rcp-article">
-                <div className="rcp-article-name">
+                <div className="rcp-article-name" style={{ marginLeft : '3px'}}>
                   {item.product?.name ?? "Article"}
                   {item.size ? ` [${item.size.label}]` : ""}
                 </div>
