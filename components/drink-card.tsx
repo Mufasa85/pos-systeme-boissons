@@ -38,17 +38,21 @@ export function DrinkCard({
         )}
       </div>
 
-      <div className="mb-3 flex items-start justify-between gap-3">
+      <div className="mb-3 flex flex-col items-start gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
         <div className="min-w-0">
           <h3 className="truncate text-base font-semibold leading-tight">
             {drink.name}
           </h3>
           <p className="mt-1 text-xs text-muted-foreground">{drink.category}</p>
+          {/* Price moves below name/category on small screens */}
+          <span className="brand-text mt-1 block text-base font-bold tabular-nums sm:hidden">
+            {formatPrice(drink.price)}
+          </span>
         </div>
         {/* All customer-facing prices are displayed in Congolese
             Francs. The amount is taken from the catalog (drink.price
             is already in FC), and formatted with the FC suffix. */}
-        <span className="brand-text shrink-0 text-base font-bold tabular-nums">
+        <span className="brand-text hidden shrink-0 text-base font-bold tabular-nums sm:inline">
           {formatPrice(drink.price)}
         </span>
       </div>
