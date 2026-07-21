@@ -340,12 +340,12 @@ export function CartPanel({
                 key={`print-${item.drink.id}-${item.size}`}
                 className="rcp-article"
               >
-                <div className="rcp-article-name">
+                <div className="rcp-article-name" style={{ marginLeft : '3px'}}>
                   {item.drink.name}
                   {item.size ? ` ${item.size}` : ""}
                 </div>
                 <div className="rcp-article-line rcp-small">
-                  <span style={{ marginLeft : '3px'}}>
+                  <span style={{ marginLeft : '7px'}}>
                     {item.quantity} x {formatPrice(item.drink.price)}
                   </span>
                   <span className="rcp-bold">
