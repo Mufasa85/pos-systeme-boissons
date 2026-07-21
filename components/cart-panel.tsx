@@ -359,7 +359,7 @@ export function CartPanel({
 
             {/* ===== Totaux (en FC) ===== */}
             <div className="rcp-line rcp-small">
-              <span>Sous-total HT</span>
+              <span>Sous-total TTC</span>
               <span>
                 {paidOrder
                   ? formatPrice(Number(paidOrder.totalAmount) - Number(paidOrder.taxAmount ?? 0))
@@ -368,7 +368,7 @@ export function CartPanel({
             </div>
 
             <div className="rcp-total">
-              <span className="rcp-bold">TOTAL HT</span>
+              <span className="rcp-bold">TOTAL TTC</span>
               <span className="rcp-bold">{formatPrice(receiptTotalFc)}</span>
             </div>
 
@@ -712,7 +712,7 @@ export function CartPanel({
                 </span>
               </div>
               <div className="flex justify-between border-b border-dashed border-zinc-300 py-1">
-                <span>Total HT</span>
+                <span>Total TTC</span>
                 <span className="font-semibold text-zinc-900 tabular-nums">
                   {formatPrice(receiptTotalFc)}
                 </span>
